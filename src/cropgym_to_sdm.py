@@ -24,22 +24,22 @@ from ngsildclient import Entity, Client, SmartDataModels
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 ROOT_DIR = os.path.dirname(os.path.dirname(SRC_DIR))
-CONFIGS_DIR = os.path.join(ROOT_DIR, 'configs')
+CONFIGS_DIR = os.path.join(ROOT_DIR, "configs")
 
 
 def init_cropgym(
-        crop_features=defaults.get_default_crop_features(pcse_env=1),
-        costs_nitrogen: int = 10,
-        reward: str = "DEF",
-        nitrogen_levels: int = 7,
-        action_multiplier: float = 1.0,
-        years: list = defaults.get_default_train_years(),
-        locations: list = defaults.get_default_location(),
-        crop_parameters: str = None,
-        site_parameters: str = None,
-        soil_parameters: str = None,
-        agro_config: str = None,
-        model_config: str = None,
+    crop_features=defaults.get_default_crop_features(pcse_env=1),
+    costs_nitrogen: int = 10,
+    reward: str = "DEF",
+    nitrogen_levels: int = 7,
+    action_multiplier: float = 1.0,
+    years: list = defaults.get_default_train_years(),
+    locations: list = defaults.get_default_location(),
+    crop_parameters: str = None,
+    site_parameters: str = None,
+    soil_parameters: str = None,
+    agro_config: str = None,
+    model_config: str = None,
 ):
     def get_action_space(nitrogen_levels=7):
         import gymnasium as gym
@@ -67,26 +67,40 @@ def init_cropgym(
 
 
 # Returns digital twin instance
-def init_digital_twin(parameter_provider, agro_config, model_config, weather_data_provider) -> Engine:
+def init_digital_twin(
+    parameter_provider, agro_config, model_config, weather_data_provider
+) -> Engine:
 
-    crop_growth_model = pcse.engine.Engine(parameterprovider=parameter_provider,
-                                           weatherdataprovider=weather_data_provider,
-                                           agromanagement=agro_config,
-                                           config=model_config)
+    crop_growth_model = pcse.engine.Engine(
+        parameterprovider=parameter_provider,
+        weatherdataprovider=weather_data_provider,
+        agromanagement=agro_config,
+        config=model_config,
+    )
 
     return crop_growth_model
 
 
 # TODO placeholders for now. Config files will change when needed.
 def get_config_files() -> dict:
-    crop_parameters = pcse.input.YAMLCropDataProvider(fpath=os.path.join(CONFIGS_DIR, 'crop'), force_reload=True)
-    site_parameters = yaml.safe_load(open(os.path.join(CONFIGS_DIR, 'site', 'initial_site.yaml')))
-    soil_parameters = yaml.safe_load(open(os.path.join(CONFIGS_DIR, 'soil', 'layered_soil.yaml')))
+    crop_parameters = pcse.input.YAMLCropDataProvider(
+        fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
+    )
+    site_parameters = yaml.safe_load(
+        open(os.path.join(CONFIGS_DIR, "site", "initial_site.yaml"))
+    )
+    soil_parameters = yaml.safe_load(
+        open(os.path.join(CONFIGS_DIR, "soil", "layered_soil.yaml"))
+    )
 
-    parameter_provider = ParameterProvider(crop_parameters, site_parameters, soil_parameters)
+    parameter_provider = ParameterProvider(
+        crop_parameters, site_parameters, soil_parameters
+    )
 
-    agro_config = os.path.join(os.path.join(CONFIGS_DIR, 'agro', 'wheat_cropcalendar.yaml'))
-    model_config = os.path.join(CONFIGS_DIR, 'Wofost81_NWLP_MLWB_SNOMIN.conf')
+    agro_config = os.path.join(
+        os.path.join(CONFIGS_DIR, "agro", "wheat_cropcalendar.yaml")
+    )
+    model_config = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
 
     return {
         "parameter_provider": parameter_provider,
@@ -98,11 +112,11 @@ def get_config_files() -> dict:
 class DMPWeatherProvider(pcse.base.weather.WeatherDataProvider):
     def add(self, weather_dict):
         wdc = pcse.base.weather.WeatherDataContainer(**weather_dict)
-        self._store_WeatherDataContainer(wdc, weather_dict['DAY'])
+        self._store_WeatherDataContainer(wdc, weather_dict["DAY"])
 
 
 def get_weather(df, day) -> dict:
-    return df.loc[df['DAY'] == day].to_dict(orient='records')[0]
+    return df.loc[df["DAY"] == day].to_dict(orient="records")[0]
 
 
 # some helper functions that we will use later on
@@ -113,23 +127,34 @@ def daterange(start_date, end_date) -> datetime.date:
 
 # to_obs converts state variables of the crop growth model weather data to a "tensor" that can be fed to the AI agent
 def to_obs(crop_data, weather_data) -> Union[list, np.array]:
-    crop_variables = ["DVS", "TAGP", "LAI", "NuptakeTotal", "TRA", "NO3", "NH4", "SM", "RFTRA", "WSO"]
+    crop_variables = [
+        "DVS",
+        "TAGP",
+        "LAI",
+        "NuptakeTotal",
+        "TRA",
+        "NO3",
+        "NH4",
+        "SM",
+        "RFTRA",
+        "WSO",
+    ]
     weather_variables = ["IRRAD", "TMIN", "RAIN"]
     timestep = 7
 
-    obs = np.zeros(len(crop_variables) + timestep*len(weather_variables))
+    obs = np.zeros(len(crop_variables) + timestep * len(weather_variables))
     for i, feature in enumerate(crop_variables):
-      obs[i] = crop_data[feature]
+        obs[i] = crop_data[feature]
 
     for d in range(timestep):
-      for i, feature in enumerate(weather_variables):
-        j = d * len(weather_variables) + len(crop_variables) + i
-        obs[j] = getattr(weather_data[d], feature)
+        for i, feature in enumerate(weather_variables):
+            j = d * len(weather_variables) + len(crop_variables) + i
+            obs[j] = getattr(weather_data[d], feature)
     return obs
 
 
 # TODO: Get from local weather station. For now use NASAPOWER
-def get_weather_df() -> pcse.input.NASAPowerWeatherDataProvider:
+def get_weather_provider() -> pcse.input.NASAPowerWeatherDataProvider:
     return pcse.input.NASAPowerWeatherDataProvider(*(55.0, 23.5))
 
 
@@ -177,17 +202,17 @@ def _get_sub_parcels(crop: Entity, location: tuple, area: float, n_rows: int):
 
 
 def create_parcel(
-        crop: Entity,
-        location: Union[Polygon, MultiPoint],  # tuple of lat and lon coordinates
-        parameter_provider: ParameterProvider = None,
-        weather_data_provider: WeatherDataProvider = None,
-        model_config: str = None,
-        agro_config: str = None,
-        area_parcel: float = 1.0,
-        n_rows: int = 0,
-        is_sub_parcel: bool = False,
-        id_sub_parcel: int = None,
-        **kwargs,
+    crop: Entity,
+    location: Union[Polygon, MultiPoint],  # tuple of lat and lon coordinates
+    parameter_provider: ParameterProvider = None,
+    weather_data_provider: WeatherDataProvider = None,
+    model_config: str = None,
+    agro_config: str = None,
+    area_parcel: float = 1.0,
+    n_rows: int = 0,
+    is_sub_parcel: bool = False,
+    id_sub_parcel: int = None,
+    **kwargs,
 ):
     # Load model and edit relevant data
     global N_PARCELS
@@ -210,7 +235,7 @@ def create_parcel(
             parameter_provider=parameter_provider,
             model_config=model_config,
             agro_config=agro_config,
-            weather_data_provider=weather_data_provider
+            weather_data_provider=weather_data_provider,
         )
     else:
         parcel.id = (
@@ -240,18 +265,20 @@ def register_dt_entity(entity):
 
 
 def main():
-    wheat_crop_entity = create_crop('wheat')
+    wheat_crop_entity = create_crop("wheat")
 
     location = MultiPoint([])
 
     # load CropGym / WOFOST
 
-    create_parcel(wheat_crop_entity,
-                  location,
-                  **get_config_files(),
-                  area_parcel=50,
-                  n_rows=3,
-                  )
+    parcel_entitiy, dt_instance = create_parcel(
+        crop=wheat_crop_entity,
+        location=location,
+        **get_config_files(),
+        weather_data_provider=get_weather_provider(),
+        area_parcel=50,
+        n_rows=3,
+    )
 
 
 if __name__ == "__main__":
