@@ -1,0 +1,223 @@
+import datetime
+import os
+from geojson import Polygon, MultiPoint, MultiLineString, Point
+from typing import Union
+import yaml
+
+import numpy as np
+
+import pcse
+from pcse.base import WeatherDataProvider
+from pcse.engine import Engine
+from pcse.base.parameter_providers import ParameterProvider
+from typing import List
+
+# import onnx
+# import onnxruntime as ort
+
+# from ngsildclient import Entity, Client, SmartDataModels
+
+from sd_data_adapter.api import upload, search, get_by_id
+import sd_data_adapter.models.agri_food as models
+
+SRC_DIR = os.path.dirname(os.path.realpath(__file__))
+# ROOT_DIR = os.path.dirname(os.path.dirname(SRC_DIR))
+CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
+
+
+# Returns digital twin instance
+def init_digital_twin(
+        parameter_provider, agro_config, model_config, weather_data_provider
+) -> Engine:
+    crop_growth_model = pcse.engine.Engine(
+        parameterprovider=parameter_provider,
+        weatherdataprovider=weather_data_provider,
+        agromanagement=agro_config,
+        config=model_config,
+    )
+
+    return crop_growth_model
+
+
+# TODO placeholders for now. Config files will change when needed.
+def get_config_files() -> dict:
+    crop_parameters = pcse.input.YAMLCropDataProvider(
+        fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
+    )
+    site_parameters = yaml.safe_load(
+        open(os.path.join(CONFIGS_DIR, "site", "initial_site.yaml"))
+    )
+    soil_parameters = yaml.safe_load(
+        open(os.path.join(CONFIGS_DIR, "soil", "layered_soil.yaml"))
+    )
+
+    parameter_provider = ParameterProvider(
+        crop_parameters, site_parameters, soil_parameters
+    )
+
+    agro_config = os.path.join(
+        os.path.join(CONFIGS_DIR, "agro", "wheat_cropcalendar.yaml")
+    )
+    model_config = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
+
+    return {
+        "parameter_provider": parameter_provider,
+        "agro_config": agro_config,
+        "model_config": model_config,
+    }
+
+
+class DMPWeatherProvider(pcse.base.weather.WeatherDataProvider):
+    def add(self, weather_dict):
+        wdc = pcse.base.weather.WeatherDataContainer(**weather_dict)
+        self._store_WeatherDataContainer(wdc, weather_dict["DAY"])
+
+
+def get_weather(df, day) -> dict:
+    return df.loc[df["DAY"] == day].to_dict(orient="records")[0]
+
+
+# some helper functions that we will use later on
+def daterange(start_date, end_date) -> datetime.date:
+    for n in range(int((end_date - start_date).days)):
+        yield start_date + datetime.timedelta(n)
+
+
+# to_obs converts state variables of the crop growth model weather data to a "tensor" that can be fed to the AI agent
+def to_obs(crop_data, weather_data) -> Union[list, np.array]:
+    crop_variables = [
+        "DVS",
+        "TAGP",
+        "LAI",
+        "NuptakeTotal",
+        "TRA",
+        "NO3",
+        "NH4",
+        "SM",
+        "RFTRA",
+        "WSO",
+    ]
+    weather_variables = ["IRRAD", "TMIN", "RAIN"]
+    timestep = 7
+
+    obs = np.zeros(len(crop_variables) + timestep * len(weather_variables))
+    for i, feature in enumerate(crop_variables):
+        obs[i] = crop_data[feature]
+
+    for d in range(timestep):
+        for i, feature in enumerate(weather_variables):
+            j = d * len(weather_variables) + len(crop_variables) + i
+            obs[j] = getattr(weather_data[d], feature)
+    return obs
+
+
+# TODO: Get from local weather station. For now use NASAPOWER
+def get_weather_provider() -> pcse.input.NASAPowerWeatherDataProvider:
+    return pcse.input.NASAPowerWeatherDataProvider(*(55.0, 23.5))
+
+
+def create_crop(crop_type, do_upload=True):
+    model = models.AgriCrop(
+        alternateName="Triticum aestivum L." if crop_type == "wheat" else "",
+        description=crop_type,
+        dateCreated=str(datetime.datetime.now()),
+        dateModified=str(datetime.datetime.now())
+    )
+    if do_upload:
+        upload(model)
+    return model
+
+
+def create_parcel(location, area_parcel, crop: models.AgriCrop, soil: models.AgriSoil, do_upload=True):
+    model = models.AgriParcel(
+        location=location,
+        area=area_parcel,
+        hasAgriCrop=crop.id,
+        hasAgriSoil=soil.id,
+        description="WheatParcel"
+    )
+    if do_upload:
+        upload(model)
+    return model
+
+
+def create_agrisoil(do_upload=True):
+    model = models.AgriSoil(
+        description="layered_soil"
+    )
+    if do_upload:
+        upload(model)
+    return model
+
+def create_digital_twins(parcels: List[models.AgriParcel]):
+    parameter_provider, agro_config, model_config = get_config_files()
+    for parcel in parcels:
+        crop_id = parcel.hasAgriCrop
+        crop = get_by_id(crop_id)
+        crop_name = crop.description
+        parameter_provider.set_active_crop(crop_name, 'Lithuania')
+
+
+    #site_parameters = yaml.safe_load(
+    #    open(os.path.join(CONFIGS_DIR, "site", "initial_site.yaml"))
+    #)
+    #soil_parameters = yaml.safe_load(
+    #    open(os.path.join(CONFIGS_DIR, "soil", "layered_soil.yaml"))
+    #)
+    #parameter_provider = pcse.base.ParameterProvider(cropdata=crop_parameters, sitedata=site_parameters,
+    #                                                 soildata=soil_parameters)
+    # parameter_provider.set_active_crop('wheat', 'Lithuania')
+
+
+        # parameter_provider = ParameterProvider(
+        #    crop_parameters, site_parameters, soil_parameters
+        # )
+
+        # crop_growth_model = pcse.engine.Engine(
+        #    parameterprovider=parameter_provider,
+        #    weatherdataprovider=weather_data_provider,
+        #    agromanagement=agro_config,
+        #    config=model_config,
+        # )
+
+    return None
+
+
+# parcel_dt = init_digital_twin(
+#    parameter_provider=parameter_provider,
+#    model_config=model_config,
+#    agro_config=agro_config,
+#    weather_data_provider=weather_data_provider,
+# )
+
+
+def main():
+    wheat_crop = create_crop("wheat")
+    soil = create_agrisoil()
+    wheat_parcel = create_parcel(location=Point((5.5, 52.0)), area_parcel=20, crop=wheat_crop, soil=soil)
+    search_params = {
+        'type': 'AgriParcel',
+        'q': 'description=="WheatParcel"'
+    }
+    my_parcels = search(search_params)
+    print(f'database contains {my_parcels}')
+
+    create_digital_twins([wheat_parcel])
+
+    # location = MultiPoint([])
+
+    # load CropGym / WOFOST
+
+    # parcel_entitiy = create_parcel(
+    #    crop=wheat_crop_entity,
+    #    location=location,
+    #    **get_config_files(),
+    #    weather_data_provider=get_weather_provider(),
+    #    area_parcel=50,
+    #    n_rows=3,
+    # )
+    # parcel_entitiy.pprint()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "digitaltwinframework"
+version = "0.1.0"
+description = "digitaltwinframework"
+authors = ["Wageningen University and Research"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+pcse = "^6.0.6"
+onnx = "^1.16.1"
+onnxruntime = "^1.18.0"
+numpy = "^2.0.0"
+ngsildclient = "^0.5.2"
+geojson= "^2.5.0"
+sd_data_adapter = { path = "../smartDropletsDataAdapters" }
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
