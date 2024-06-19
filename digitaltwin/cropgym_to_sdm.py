@@ -111,9 +111,10 @@ def to_obs(crop_data, weather_data) -> Union[list, np.array]:
     return obs
 
 
-# TODO: Get from local weather station. For now use NASAPOWER
-def get_weather_provider() -> pcse.input.NASAPowerWeatherDataProvider:
-    return pcse.input.NASAPowerWeatherDataProvider(*(55.0, 23.5))
+def get_weather_provider(parcel: models.AgriParcel) -> pcse.input.NASAPowerWeatherDataProvider:
+    location = parcel.location
+    return pcse.input.NASAPowerWeatherDataProvider(*location)
+    #return pcse.input.NASAPowerWeatherDataProvider(*(55.0, 23.5))
 
 
 def create_crop(crop_type, do_upload=True):
@@ -134,11 +135,30 @@ def create_parcel(location, area_parcel, crop: models.AgriCrop, soil: models.Agr
         area=area_parcel,
         hasAgriCrop=crop.id,
         hasAgriSoil=soil.id,
-        description="WheatParcel"
+        description="initial_site"
     )
     if do_upload:
         upload(model)
     return model
+
+
+def get_crop_and_variety_name(crop: models.AgriCrop):
+    crop_name, variety_name = crop.description
+    return crop_name, variety_name
+
+
+def get_soil_parameters(soil: models.AgriSoil):
+    soil_type = soil.description
+    soil_parameters = yaml.safe_load(
+        open(os.path.join(CONFIGS_DIR, "soil", f"{soil_type}.yaml")))
+    return soil_parameters
+
+
+def get_site_parameters(site: models.agriParcel):
+    site_name = site.description
+    site_parameters = yaml.safe_load(
+        open(os.path.join(CONFIGS_DIR, "site", f"{site_name}.yaml")))
+    return site_parameters
 
 
 def create_agrisoil(do_upload=True):
@@ -149,13 +169,34 @@ def create_agrisoil(do_upload=True):
         upload(model)
     return model
 
+
+def get_agro_config(crop_name, variety_name):
+
+
 def create_digital_twins(parcels: List[models.AgriParcel]):
-    parameter_provider, agro_config, model_config = get_config_files()
+
+    crop_parameters = pcse.input.YAMLCropDataProvider(
+        fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
+    )
     for parcel in parcels:
-        crop_id = parcel.hasAgriCrop
-        crop = get_by_id(crop_id)
-        crop_name = crop.description
-        parameter_provider.set_active_crop(crop_name, 'Lithuania')
+        crop = get_by_id(parcel.hasAgriCrop)
+        soil = get_by_id(parcel.hasAgriSoil)
+        crop_name, variety_name = get_crop_and_variety_name(crop)
+
+        soil_parameters = get_soil_parameters(soil)
+        site_parameters = get_site_parameters(parcel)
+        agro_config = get_agro_config(crop_name, variety_name)
+        weatherdataprovider = get_weather_provider(parcel)
+
+        parameter_provider= ParameterProvider(crop_parameters, site_parameters, soil_parameters)
+        crop_growth_model = pcse.engine.Engine(
+            parameterprovider=parameter_provider,
+            weatherdataprovider=weatherdataprovider,
+            agromanagement=agro_config,
+            config=model_config,
+        )
+
+        #parameter_provider.set_active_crop(crop_name, 'Lithuania')
 
 
     #site_parameters = yaml.safe_load(
