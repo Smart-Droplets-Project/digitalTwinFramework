@@ -222,7 +222,7 @@ def get_agro_config(crop_name: str,
     return agro_config
 
 
-def create_digital_twins(parcels: List[models.AgriParcel]):
+def create_digital_twins(parcels: List[models.AgriParcel]) -> dict:
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
     )
@@ -252,38 +252,7 @@ def create_digital_twins(parcels: List[models.AgriParcel]):
 
         digital_twin_dict[parcel.id] = crop_growth_model
 
-        #parameter_provider.set_active_crop(crop_name, 'Lithuania')
-
-    #site_parameters = yaml.safe_load(
-    #    open(os.path.join(CONFIGS_DIR, "site", "initial_site.yaml"))
-    #)
-    #soil_parameters = yaml.safe_load(
-    #    open(os.path.join(CONFIGS_DIR, "soil", "layered_soil.yaml"))
-    #)
-    #parameter_provider = pcse.base.ParameterProvider(cropdata=crop_parameters, sitedata=site_parameters,
-    #                                                 soildata=soil_parameters)
-    # parameter_provider.set_active_crop('wheat', 'Lithuania')
-
-    # parameter_provider = ParameterProvider(
-    #    crop_parameters, site_parameters, soil_parameters
-    # )
-
-    # crop_growth_model = pcse.engine.Engine(
-    #    parameterprovider=parameter_provider,
-    #    weatherdataprovider=weather_data_provider,
-    #    agromanagement=agro_config,
-    #    config=model_config,
-    # )
-
-    return None
-
-
-# parcel_dt = init_digital_twin(
-#    parameter_provider=parameter_provider,
-#    model_config=model_config,
-#    agro_config=agro_config,
-#    weather_data_provider=weather_data_provider,
-# )
+    return digital_twin_dict
 
 
 def main():
@@ -297,7 +266,7 @@ def main():
     my_parcels = search(search_params)
     print(f'database contains {my_parcels}')
 
-    create_digital_twins([wheat_parcel])
+    parcel_digital_twin = create_digital_twins([wheat_parcel])
 
     # location = MultiPoint([])
 
