@@ -226,6 +226,8 @@ def create_digital_twins(parcels: List[models.AgriParcel]):
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
     )
+
+    digital_twin_dict = {}
     for parcel in parcels:
         crop = get_by_id(parcel.hasAgriCrop)
         soil = get_by_id(parcel.hasAgriSoil)
@@ -247,6 +249,8 @@ def create_digital_twins(parcels: List[models.AgriParcel]):
             agromanagement=agro_config,
             config=PCSE_MODEL_CONF_DIR,
         )
+
+        digital_twin_dict[parcel.id] = crop_growth_model
 
         #parameter_provider.set_active_crop(crop_name, 'Lithuania')
 
