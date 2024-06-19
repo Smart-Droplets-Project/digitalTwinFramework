@@ -1,6 +1,6 @@
 import datetime
 import os
-from geojson import Polygon, MultiPoint, MultiLineString, Point
+from geojson import Polygon, MultiPoint, MultiLineString, Point, Feature, FeatureCollection
 from typing import Union
 import yaml
 
@@ -23,6 +23,7 @@ import sd_data_adapter.models.agri_food as models
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 # ROOT_DIR = os.path.dirname(os.path.dirname(SRC_DIR))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
+PCSE_MODEL_CONF_DIR = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
 
 
 # Returns digital twin instance
@@ -117,7 +118,13 @@ def get_weather_provider(parcel: models.AgriParcel) -> pcse.input.NASAPowerWeath
     #return pcse.input.NASAPowerWeatherDataProvider(*(55.0, 23.5))
 
 
-def create_crop(crop_type, do_upload=True):
+def create_crop(crop_type: str, do_upload=True) -> models.AgriCrop:
+    """
+    Function to create SDM crop entity
+
+    :param crop_type: String of generic crop type
+    :return: AgriCrop entity
+    """
     model = models.AgriCrop(
         alternateName="Triticum aestivum L." if crop_type == "wheat" else "",
         description=crop_type,
@@ -129,13 +136,31 @@ def create_crop(crop_type, do_upload=True):
     return model
 
 
-def create_parcel(location, area_parcel, crop: models.AgriCrop, soil: models.AgriSoil, do_upload=True):
+def create_parcel(location: Union[FeatureCollection, Point, MultiLineString, Polygon],
+                  area_parcel: float,
+                  crop: models.AgriCrop,
+                  soil: models.AgriSoil,
+                  do_upload=True) -> models.AgriParcel:
+    """
+    Function to initialize a parcel Entity.
+
+    :param location: A geoJSON object describing multiple things:
+                    - Point: A point to reference for weather/meteo provider
+                    - MultiLineString: Multi lines describing tractor rows for the retrofitted tractor
+                    - Polygon: Describes parcel area
+                    - FeatureCollection: a collection of the above features
+    :param area_parcel: A float of parcel area in hectares (ha)
+    :param crop: A SmartDataModel crop entity
+    :param soil: A SmartDataModel soil entity
+    :param do_upload: Bool to upload entity to Data Management Platform
+    :return: AgriParcel SmartDataModel entity
+    """
     model = models.AgriParcel(
         location=location,
         area=area_parcel,
         hasAgriCrop=crop.id,
         hasAgriSoil=soil.id,
-        description="initial_site"
+        description="initial_site"  # TODO placeholder description
     )
     if do_upload:
         upload(model)
@@ -161,6 +186,7 @@ def get_site_parameters(site: models.agriParcel):
     return site_parameters
 
 
+# TODO placeholder description
 def create_agrisoil(do_upload=True):
     model = models.AgriSoil(
         description="layered_soil"
@@ -171,6 +197,8 @@ def create_agrisoil(do_upload=True):
 
 
 def get_agro_config(crop_name, variety_name):
+    if crop_name is "wheat":
+
 
 
 def create_digital_twins(parcels: List[models.AgriParcel]):
@@ -193,7 +221,7 @@ def create_digital_twins(parcels: List[models.AgriParcel]):
             parameterprovider=parameter_provider,
             weatherdataprovider=weatherdataprovider,
             agromanagement=agro_config,
-            config=model_config,
+            config=PCSE_MODEL_CONF_DIR,
         )
 
         #parameter_provider.set_active_crop(crop_name, 'Lithuania')
