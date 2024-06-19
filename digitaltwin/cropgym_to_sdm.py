@@ -20,6 +20,8 @@ from typing import List
 from sd_data_adapter.api import upload, search, get_by_id
 import sd_data_adapter.models.agri_food as models
 
+from utils.agromanagement_util import AgroManagement
+
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 # ROOT_DIR = os.path.dirname(os.path.dirname(SRC_DIR))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
@@ -196,13 +198,31 @@ def create_agrisoil(do_upload=True):
     return model
 
 
-def get_agro_config(crop_name, variety_name):
-    if crop_name is "wheat":
+def get_agro_config(crop_name: str,
+                    variety_name: str,
+                    start_date: datetime.datetime,
+                    end_date: datetime.datetime,
+                    start_type: str = 'sowing',
+                    end_type: str = 'harvest',
+                    max_duration: int = 365):
+    init_agro_config = yaml.load(os.path.join(CONFIGS_DIR, "agro", "wheat_cropcalendar.yaml"),
+                                 Loader=yaml.SafeLoader)
+    agro_config_container = AgroManagement(init_agro_config)
 
+    crop_name = "winterwheat" if crop_name == "wheat" else "wheat"
+    agro_config_container.set_crop_name(crop_name)
+    agro_config_container.set_variety_name(variety_name)
+    agro_config_container.set_start_date(start_date)
+    agro_config_container.set_end_date(end_date)
+    agro_config_container.set_start_type(start_type)
+    agro_config_container.set_end_type(end_type)
+    agro_config_container.set_max_duration(max_duration)
+
+    agro_config = agro_config_container.load_agromanagement_file
+    return agro_config
 
 
 def create_digital_twins(parcels: List[models.AgriParcel]):
-
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
     )
@@ -210,13 +230,17 @@ def create_digital_twins(parcels: List[models.AgriParcel]):
         crop = get_by_id(parcel.hasAgriCrop)
         soil = get_by_id(parcel.hasAgriSoil)
         crop_name, variety_name = get_crop_and_variety_name(crop)
+        planting_date, harvest_date = crop.plantingFrom
 
         soil_parameters = get_soil_parameters(soil)
         site_parameters = get_site_parameters(parcel)
-        agro_config = get_agro_config(crop_name, variety_name)
+        agro_config = get_agro_config(crop_name,
+                                      variety_name,
+                                      planting_date,
+                                      harvest_date,)
         weatherdataprovider = get_weather_provider(parcel)
 
-        parameter_provider= ParameterProvider(crop_parameters, site_parameters, soil_parameters)
+        parameter_provider = ParameterProvider(crop_parameters, site_parameters, soil_parameters)
         crop_growth_model = pcse.engine.Engine(
             parameterprovider=parameter_provider,
             weatherdataprovider=weatherdataprovider,
@@ -225,7 +249,6 @@ def create_digital_twins(parcels: List[models.AgriParcel]):
         )
 
         #parameter_provider.set_active_crop(crop_name, 'Lithuania')
-
 
     #site_parameters = yaml.safe_load(
     #    open(os.path.join(CONFIGS_DIR, "site", "initial_site.yaml"))
@@ -237,17 +260,16 @@ def create_digital_twins(parcels: List[models.AgriParcel]):
     #                                                 soildata=soil_parameters)
     # parameter_provider.set_active_crop('wheat', 'Lithuania')
 
+    # parameter_provider = ParameterProvider(
+    #    crop_parameters, site_parameters, soil_parameters
+    # )
 
-        # parameter_provider = ParameterProvider(
-        #    crop_parameters, site_parameters, soil_parameters
-        # )
-
-        # crop_growth_model = pcse.engine.Engine(
-        #    parameterprovider=parameter_provider,
-        #    weatherdataprovider=weather_data_provider,
-        #    agromanagement=agro_config,
-        #    config=model_config,
-        # )
+    # crop_growth_model = pcse.engine.Engine(
+    #    parameterprovider=parameter_provider,
+    #    weatherdataprovider=weather_data_provider,
+    #    agromanagement=agro_config,
+    #    config=model_config,
+    # )
 
     return None
 
