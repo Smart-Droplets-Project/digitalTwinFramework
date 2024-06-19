@@ -115,7 +115,7 @@ def to_obs(crop_data, weather_data) -> Union[list, np.array]:
 
 
 def get_weather_provider(parcel: models.AgriParcel) -> pcse.input.NASAPowerWeatherDataProvider:
-    location = parcel.location
+    location = parcel.location.Point  #TODO replace with robust way to reference Point object
     return pcse.input.NASAPowerWeatherDataProvider(*location)
     #return pcse.input.NASAPowerWeatherDataProvider(*(55.0, 23.5))
 
