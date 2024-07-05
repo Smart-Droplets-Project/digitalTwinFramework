@@ -222,6 +222,27 @@ def get_agro_config(crop_name: str,
     return agro_config
 
 
+def geo_feature_collections(point: Point = None,
+                            point_name: str = 'weather location',
+                            multilinestring: MultiLineString = None,
+                            multilinestring_name: str = 'rows',
+                            polygon: Polygon = None,
+                            polygon_name: str = 'parcel area',
+                            ) -> FeatureCollection:
+    ...
+    point = point if point is not None else Point()
+    point_feature = Feature(geometry=point, properties={"name": point_name})  # check if any properties are needed
+
+    multilinestring = multilinestring if multilinestring is not None else MultiLineString()
+    multilinestring_feature = Feature(geometry=multilinestring, properties={"name": multilinestring_name})
+
+    polygon = polygon if polygon is not None else Polygon()
+    polygon_feature = Feature(geometry=polygon, properties={"name": polygon_name})
+
+
+    return FeatureCollection([point_feature, multilinestring_feature, polygon_feature])
+
+
 def create_digital_twins(parcels: List[models.AgriParcel]) -> dict:
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
@@ -258,7 +279,12 @@ def create_digital_twins(parcels: List[models.AgriParcel]) -> dict:
 def main():
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
-    wheat_parcel = create_parcel(location=Point((5.5, 52.0)), area_parcel=20, crop=wheat_crop, soil=soil)
+    geo_feature_collection = geo_feature_collections(
+        point=Point((5.5, 52.0)),
+        multilinestring=MultiLineString(),
+        polygon=Polygon()
+    )
+    wheat_parcel = create_parcel(location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil)
     search_params = {
         'type': 'AgriParcel',
         'q': 'description=="WheatParcel"'
@@ -267,6 +293,8 @@ def main():
     print(f'database contains {my_parcels}')
 
     parcel_digital_twin = create_digital_twins([wheat_parcel])
+
+
 
     # location = MultiPoint([])
 
