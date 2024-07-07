@@ -3,7 +3,6 @@ import os
 from geojson import Polygon, MultiPoint, MultiLineString, Point, Feature, FeatureCollection
 from typing import Union
 import yaml
-
 import numpy as np
 
 import pcse
@@ -19,8 +18,10 @@ from typing import List
 
 from sd_data_adapter.api import upload, search, get_by_id
 import sd_data_adapter.models.agri_food as models
+import sd_data_adapter.models.autonomous_mobile_robot as robots
 
 from utils.agromanagement_util import AgroManagement
+from utils.cropgym_helpers import extract_digital_twin_obs, placeholder_recommendation
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 # ROOT_DIR = os.path.dirname(os.path.dirname(SRC_DIR))
@@ -68,6 +69,12 @@ def get_config_files() -> dict:
         "agro_config": agro_config,
         "model_config": model_config,
     }
+
+
+
+
+def random_action_placeholder(obs)-> list:
+
 
 
 class DMPWeatherProvider(pcse.base.weather.WeatherDataProvider):
@@ -243,6 +250,15 @@ def geo_feature_collections(point: Point = None,
     return FeatureCollection([point_feature, multilinestring_feature, polygon_feature])
 
 
+def get_row_coordinates(parcel_loc: Union[FeatureCollection, models.AgriParcel.location],):
+    multi_line_string_coords = []
+    for feature in parcel_loc['features']:
+        if feature['geometry']['type'] == 'MultiLineString':
+            coords = feature['geometry']['coordinates']
+            multi_line_string_coords.append(coords)
+    return multi_line_string_coords
+
+
 def create_digital_twins(parcels: List[models.AgriParcel]) -> dict:
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
@@ -276,13 +292,37 @@ def create_digital_twins(parcels: List[models.AgriParcel]) -> dict:
     return digital_twin_dict
 
 
+def get_recommendation_message(recommendation, day, parcel_id):
+    return f"rec-fertilize:{recommendation}:day:{day}:parcel_id:{parcel_id}"  # might need to change
+
+def create_command_message(message_id,
+                           command,
+                           command_time,
+                           waypoints,
+                           do_upload=True):
+    model = robots.CommandMessage(
+        id=message_id,
+        command=command,
+        commandTime=command_time,
+        waypoints=waypoints,
+    )
+    if do_upload:
+        upload(model)
+    return model
+
+
+# TODO do executions in appropriate methods
+def generate_rec_message_id(day, parcel_id):
+    return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
+
+
 def main():
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
     geo_feature_collection = geo_feature_collections(
-        point=Point((5.5, 52.0)),
-        multilinestring=MultiLineString(),
-        polygon=Polygon()
+        point=Point((5.5, 52.0)),  # for weather data
+        multilinestring=MultiLineString(),  # for rows
+        polygon=Polygon(),  # for parcel area
     )
     wheat_parcel = create_parcel(location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil)
     search_params = {
@@ -292,9 +332,18 @@ def main():
     my_parcels = search(search_params)
     print(f'database contains {my_parcels}')
 
-    parcel_digital_twin = create_digital_twins([wheat_parcel])
+    digital_twin_dicts = create_digital_twins([wheat_parcel])
 
+    # generate example commandmessage for tractor
+    obs, day = extract_digital_twin_obs(digital_twin_dicts[wheat_parcel.id].get_output())
+    recommendation = placeholder_recommendation(obs)                # replace when digital twin logic ready
+    recommendation_message = get_recommendation_message(recommendation, day, wheat_parcel.id)
+    command_message_id = generate_rec_message_id(recommendation, wheat_parcel.id)
 
+    command = create_command_message(command_message_id,
+                                     recommendation_message,
+                                     day,
+                                     get_row_coordinates(wheat_parcel.location))
 
     # location = MultiPoint([])
 
