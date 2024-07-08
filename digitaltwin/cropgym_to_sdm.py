@@ -29,18 +29,6 @@ CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
 PCSE_MODEL_CONF_DIR = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
 
 
-# Returns digital twin instance
-def init_digital_twin(
-        parameter_provider, agro_config, model_config, weather_data_provider
-) -> Engine:
-    crop_growth_model = pcse.engine.Engine(
-        parameterprovider=parameter_provider,
-        weatherdataprovider=weather_data_provider,
-        agromanagement=agro_config,
-        config=model_config,
-    )
-
-    return crop_growth_model
 
 
 # TODO placeholders for now. Config files will change when needed.
@@ -69,12 +57,6 @@ def get_config_files() -> dict:
         "agro_config": agro_config,
         "model_config": model_config,
     }
-
-
-
-
-def random_action_placeholder(obs)-> list:
-
 
 
 class DMPWeatherProvider(pcse.base.weather.WeatherDataProvider):
@@ -229,13 +211,13 @@ def get_agro_config(crop_name: str,
     return agro_config
 
 
-def geo_feature_collections(point: Point = None,
-                            point_name: str = 'weather location',
-                            multilinestring: MultiLineString = None,
-                            multilinestring_name: str = 'rows',
-                            polygon: Polygon = None,
-                            polygon_name: str = 'parcel area',
-                            ) -> FeatureCollection:
+def generate_feature_collections(point: Point = None,
+                                 point_name: str = 'weather location',
+                                 multilinestring: MultiLineString = None,
+                                 multilinestring_name: str = 'rows',
+                                 polygon: Polygon = None,
+                                 polygon_name: str = 'parcel area',
+                                 ) -> FeatureCollection:
     ...
     point = point if point is not None else Point()
     point_feature = Feature(geometry=point, properties={"name": point_name})  # check if any properties are needed
@@ -295,6 +277,7 @@ def create_digital_twins(parcels: List[models.AgriParcel]) -> dict:
 def get_recommendation_message(recommendation, day, parcel_id):
     return f"rec-fertilize:{recommendation}:day:{day}:parcel_id:{parcel_id}"  # might need to change
 
+
 def create_command_message(message_id,
                            command,
                            command_time,
@@ -319,7 +302,7 @@ def generate_rec_message_id(day, parcel_id):
 def main():
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
-    geo_feature_collection = geo_feature_collections(
+    geo_feature_collection = generate_feature_collections(
         point=Point((5.5, 52.0)),  # for weather data
         multilinestring=MultiLineString(),  # for rows
         polygon=Polygon(),  # for parcel area
@@ -335,29 +318,19 @@ def main():
     digital_twin_dicts = create_digital_twins([wheat_parcel])
 
     # generate example commandmessage for tractor
-    obs, day = extract_digital_twin_obs(digital_twin_dicts[wheat_parcel.id].get_output())
+    obs, day = extract_digital_twin_obs(output=digital_twin_dicts[wheat_parcel.id].get_output())
     recommendation = placeholder_recommendation(obs)                # replace when digital twin logic ready
-    recommendation_message = get_recommendation_message(recommendation, day, wheat_parcel.id)
-    command_message_id = generate_rec_message_id(recommendation, wheat_parcel.id)
+    recommendation_message = get_recommendation_message(recommendation=recommendation,
+                                                        day=day,
+                                                        parcel_id=wheat_parcel.id)
+    command_message_id = generate_rec_message_id(day=day,
+                                                 parcel_id=wheat_parcel.id)
 
-    command = create_command_message(command_message_id,
-                                     recommendation_message,
-                                     day,
-                                     get_row_coordinates(wheat_parcel.location))
+    command = create_command_message(message_id=command_message_id,
+                                     command=recommendation_message,
+                                     command_time=day,
+                                     waypoints=get_row_coordinates(wheat_parcel.location))
 
-    # location = MultiPoint([])
-
-    # load CropGym / WOFOST
-
-    # parcel_entitiy = create_parcel(
-    #    crop=wheat_crop_entity,
-    #    location=location,
-    #    **get_config_files(),
-    #    weather_data_provider=get_weather_provider(),
-    #    area_parcel=50,
-    #    n_rows=3,
-    # )
-    # parcel_entitiy.pprint()
 
 
 if __name__ == "__main__":
