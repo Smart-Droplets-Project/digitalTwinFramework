@@ -29,8 +29,6 @@ CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
 PCSE_MODEL_CONF_DIR = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
 
 
-
-
 # TODO placeholders for now. Config files will change when needed.
 def get_config_files() -> dict:
     crop_parameters = pcse.input.YAMLCropDataProvider(
@@ -104,7 +102,8 @@ def to_obs(crop_data, weather_data) -> Union[list, np.array]:
 
 
 def get_weather_provider(parcel: agri_food_model.AgriParcel) -> pcse.input.NASAPowerWeatherDataProvider:
-    location = parcel.location['features'][0]['geometry']['coordinates']  #TODO replace with robust way to reference Point object
+    location = parcel.location['features'][0]['geometry'][
+        'coordinates']  #TODO replace with robust way to reference Point object
     return pcse.input.NASAPowerWeatherDataProvider(*location)
     #return pcse.input.NASAPowerWeatherDataProvider(*(55.0, 23.5))
 
@@ -196,7 +195,6 @@ def get_agro_config(crop_name: str,
                     start_type: str = 'sowing',
                     end_type: str = 'harvest',
                     max_duration: int = 365):
-
     with open(os.path.join(CONFIGS_DIR, "agro", "wheat_cropcalendar.yaml"), 'r') as f:
         init_agro_config = yaml.load(f, Loader=yaml.SafeLoader)
     agro_config_container = AgroManagement(init_agro_config)
@@ -231,7 +229,6 @@ def generate_feature_collections(point: Point = None,
     polygon = polygon if polygon is not None else Polygon()
     polygon_feature = Feature(geometry=polygon, properties={"name": polygon_name})
 
-
     return FeatureCollection([point_feature, multilinestring_feature, polygon_feature])
 
 
@@ -262,7 +259,7 @@ def create_digital_twins(parcels: List[agri_food_model.AgriParcel]) -> dict:
         agro_config = get_agro_config(crop_name,
                                       variety_name,
                                       planting_date,
-                                      harvest_date,)
+                                      harvest_date, )
         weatherdataprovider = get_weather_provider(parcel)
 
         parameter_provider = ParameterProvider(crop_parameters, site_parameters, soil_parameters)
@@ -303,6 +300,31 @@ def generate_rec_message_id(day, parcel_id):
     return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
 
 
+def command_message(digital_twin_dicts: dict,
+                    parcel: agri_food_model.AgriParcel,
+                    parcel_id: str = None) -> robot_model.CommandMessage:
+    if parcel_id is None:
+        obs, day = extract_digital_twin_obs(output=digital_twin_dicts[parcel.id].get_output())
+    else:
+        obs, day = extract_digital_twin_obs(output=digital_twin_dicts[parcel_id].get_output())
+
+    recommendation = placeholder_recommendation(obs)  # replace when digital twin logic ready
+
+    recommendation_message = get_recommendation_message(recommendation=recommendation,
+                                                        day=day,
+                                                        parcel_id=parcel_id if parcel_id is not None else parcel.id)
+
+    command_message_id = generate_rec_message_id(day=day,
+                                                 parcel_id=parcel_id if parcel_id is not None else parcel.id)
+
+    command = create_command_message(message_id=command_message_id,
+                                     command=recommendation_message,
+                                     command_time=day,
+                                     waypoints=get_row_coordinates(parcel.location))
+
+    return command
+
+
 def main():
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
@@ -321,22 +343,8 @@ def main():
 
     digital_twin_dicts = create_digital_twins([wheat_parcel])
 
-    # generate example commandmessage for tractor
-    obs, day = extract_digital_twin_obs(output=digital_twin_dicts[wheat_parcel.id].get_output())
-
-    recommendation = placeholder_recommendation(obs)                # replace when digital twin logic ready
-
-    recommendation_message = get_recommendation_message(recommendation=recommendation,
-                                                        day=day,
-                                                        parcel_id=wheat_parcel.id)
-
-    command_message_id = generate_rec_message_id(day=day,
-                                                 parcel_id=wheat_parcel.id)
-
-    command = create_command_message(message_id=command_message_id,
-                                     command=recommendation_message,
-                                     command_time=day,
-                                     waypoints=get_row_coordinates(wheat_parcel.location))
+    command = command_message(digital_twin_dicts=digital_twin_dicts,
+                              parcel=wheat_parcel)
 
     print(command.command)
 
