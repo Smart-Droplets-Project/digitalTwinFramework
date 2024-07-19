@@ -16,9 +16,9 @@ from typing import List
 
 # from ngsildclient import Entity, Client, SmartDataModels
 
-from sd_data_adapter.api import upload, search, get_by_id
-import sd_data_adapter.models.agri_food as models
-import sd_data_adapter.models.autonomous_mobile_robot as robots
+from sd_data_adapter.api import upload, search, get_by_id, update
+import sd_data_adapter.models.agri_food as agri_food_model
+import sd_data_adapter.models.autonomous_mobile_robot as robot_model
 
 from utils.agromanagement_util import AgroManagement
 from utils.cropgym_helpers import extract_digital_twin_obs, placeholder_recommendation
@@ -103,24 +103,26 @@ def to_obs(crop_data, weather_data) -> Union[list, np.array]:
     return obs
 
 
-def get_weather_provider(parcel: models.AgriParcel) -> pcse.input.NASAPowerWeatherDataProvider:
-    location = parcel.location.Point  #TODO replace with robust way to reference Point object
+def get_weather_provider(parcel: agri_food_model.AgriParcel) -> pcse.input.NASAPowerWeatherDataProvider:
+    location = parcel.location['features'][0]['geometry']['coordinates']  #TODO replace with robust way to reference Point object
     return pcse.input.NASAPowerWeatherDataProvider(*location)
     #return pcse.input.NASAPowerWeatherDataProvider(*(55.0, 23.5))
 
 
-def create_crop(crop_type: str, do_upload=True) -> models.AgriCrop:
+def create_crop(crop_type: str, do_upload=True) -> agri_food_model.AgriCrop:
     """
     Function to create SDM crop entity
 
     :param crop_type: String of generic crop type
     :return: AgriCrop entity
     """
-    model = models.AgriCrop(
+    model = agri_food_model.AgriCrop(
         alternateName="Triticum aestivum L." if crop_type == "wheat" else "",
         description=crop_type,
         dateCreated=str(datetime.datetime.now()),
-        dateModified=str(datetime.datetime.now())
+        dateModified=str(datetime.datetime.now()),
+        # TODO grab from somewhere
+        plantingFrom=["20221003", "20230820"]  # List of planting and harvest date in YYYYMMDD in str
     )
     if do_upload:
         upload(model)
@@ -129,9 +131,9 @@ def create_crop(crop_type: str, do_upload=True) -> models.AgriCrop:
 
 def create_parcel(location: Union[FeatureCollection, Point, MultiLineString, Polygon],
                   area_parcel: float,
-                  crop: models.AgriCrop,
-                  soil: models.AgriSoil,
-                  do_upload=True) -> models.AgriParcel:
+                  crop: agri_food_model.AgriCrop,
+                  soil: agri_food_model.AgriSoil,
+                  do_upload=True) -> agri_food_model.AgriParcel:
     """
     Function to initialize a parcel Entity.
 
@@ -146,7 +148,7 @@ def create_parcel(location: Union[FeatureCollection, Point, MultiLineString, Pol
     :param do_upload: Bool to upload entity to Data Management Platform
     :return: AgriParcel SmartDataModel entity
     """
-    model = models.AgriParcel(
+    model = agri_food_model.AgriParcel(
         location=location,
         area=area_parcel,
         hasAgriCrop=crop.id,
@@ -158,19 +160,19 @@ def create_parcel(location: Union[FeatureCollection, Point, MultiLineString, Pol
     return model
 
 
-def get_crop_and_variety_name(crop: models.AgriCrop):
-    crop_name, variety_name = crop.description
+def get_crop_and_variety_name(crop: agri_food_model.AgriCrop):
+    crop_name, variety_name = crop.description, crop.alternateName
     return crop_name, variety_name
 
 
-def get_soil_parameters(soil: models.AgriSoil):
+def get_soil_parameters(soil: agri_food_model.AgriSoil):
     soil_type = soil.description
     soil_parameters = yaml.safe_load(
         open(os.path.join(CONFIGS_DIR, "soil", f"{soil_type}.yaml")))
     return soil_parameters
 
 
-def get_site_parameters(site: models.agriParcel):
+def get_site_parameters(site: agri_food_model.agriParcel):
     site_name = site.description
     site_parameters = yaml.safe_load(
         open(os.path.join(CONFIGS_DIR, "site", f"{site_name}.yaml")))
@@ -179,7 +181,7 @@ def get_site_parameters(site: models.agriParcel):
 
 # TODO placeholder description
 def create_agrisoil(do_upload=True):
-    model = models.AgriSoil(
+    model = agri_food_model.AgriSoil(
         description="layered_soil"
     )
     if do_upload:
@@ -194,8 +196,9 @@ def get_agro_config(crop_name: str,
                     start_type: str = 'sowing',
                     end_type: str = 'harvest',
                     max_duration: int = 365):
-    init_agro_config = yaml.load(os.path.join(CONFIGS_DIR, "agro", "wheat_cropcalendar.yaml"),
-                                 Loader=yaml.SafeLoader)
+
+    with open(os.path.join(CONFIGS_DIR, "agro", "wheat_cropcalendar.yaml"), 'r') as f:
+        init_agro_config = yaml.load(f, Loader=yaml.SafeLoader)
     agro_config_container = AgroManagement(init_agro_config)
 
     crop_name = "winterwheat" if crop_name == "wheat" else "wheat"
@@ -232,7 +235,7 @@ def generate_feature_collections(point: Point = None,
     return FeatureCollection([point_feature, multilinestring_feature, polygon_feature])
 
 
-def get_row_coordinates(parcel_loc: Union[FeatureCollection, models.AgriParcel.location],):
+def get_row_coordinates(parcel_loc: Union[FeatureCollection, agri_food_model.AgriParcel.location], ):
     multi_line_string_coords = []
     for feature in parcel_loc['features']:
         if feature['geometry']['type'] == 'MultiLineString':
@@ -241,7 +244,7 @@ def get_row_coordinates(parcel_loc: Union[FeatureCollection, models.AgriParcel.l
     return multi_line_string_coords
 
 
-def create_digital_twins(parcels: List[models.AgriParcel]) -> dict:
+def create_digital_twins(parcels: List[agri_food_model.AgriParcel]) -> dict:
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
     )
@@ -251,7 +254,8 @@ def create_digital_twins(parcels: List[models.AgriParcel]) -> dict:
         crop = get_by_id(parcel.hasAgriCrop)
         soil = get_by_id(parcel.hasAgriSoil)
         crop_name, variety_name = get_crop_and_variety_name(crop)
-        planting_date, harvest_date = crop.plantingFrom
+        planting_date, harvest_date = (datetime.datetime.strptime(crop.plantingFrom[0], "%Y%m%d"),
+                                       datetime.datetime.strptime(crop.plantingFrom[1], "%Y%m%d"))
 
         soil_parameters = get_soil_parameters(soil)
         site_parameters = get_site_parameters(parcel)
@@ -283,7 +287,7 @@ def create_command_message(message_id,
                            command_time,
                            waypoints,
                            do_upload=True):
-    model = robots.CommandMessage(
+    model = robot_model.CommandMessage(
         id=message_id,
         command=command,
         commandTime=command_time,
@@ -319,10 +323,13 @@ def main():
 
     # generate example commandmessage for tractor
     obs, day = extract_digital_twin_obs(output=digital_twin_dicts[wheat_parcel.id].get_output())
+
     recommendation = placeholder_recommendation(obs)                # replace when digital twin logic ready
+
     recommendation_message = get_recommendation_message(recommendation=recommendation,
                                                         day=day,
                                                         parcel_id=wheat_parcel.id)
+
     command_message_id = generate_rec_message_id(day=day,
                                                  parcel_id=wheat_parcel.id)
 
@@ -331,6 +338,7 @@ def main():
                                      command_time=day,
                                      waypoints=get_row_coordinates(wheat_parcel.location))
 
+    print(command.command)
 
 
 if __name__ == "__main__":

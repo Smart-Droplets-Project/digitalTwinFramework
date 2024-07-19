@@ -16,7 +16,10 @@ def extract_digital_twin_obs(output):
     days = [day["day"] for day in output]
 
     for i, o in enumerate(get_crop_vars()):
-        obs[i] = output[-1][o]
+        if isinstance(output[-1][o], np.ndarray):
+            obs[i] = output[-1][o][-1]
+        else:
+            obs[i] = output[-1][o]
 
     # TODO get from weather data provider
     # for j, w in enumerate(get_weather_vars()):
