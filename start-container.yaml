@@ -1,0 +1,14 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: digitaltwin-container
+spec:
+  template:
+    spec:
+      containers:
+      - name: digitaltwin-container
+        image: digitaltwin
+        imagePullPolicy: Never
+        command: ["sleep", "infinity"]
+      restartPolicy: Never
+  backoffLimit: 0
