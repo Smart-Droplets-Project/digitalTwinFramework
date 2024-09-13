@@ -1,9 +1,3 @@
-# install minikube
-# helm repo add fiware https://fiware.github.io/helm-charts/
-# helm install orion fiware/orion
-# eval $(minikube -p minikube docker-env)
-# docker build -t digitaltwin -f Dockerfile ../
-
 FROM python:3.11-slim
 
 RUN pip install poetry
