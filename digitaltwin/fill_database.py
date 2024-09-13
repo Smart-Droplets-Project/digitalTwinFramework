@@ -266,12 +266,7 @@ def generate_rec_message_id(day, parcel_id):
     return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
 
 
-def main():
-    with DAClient.get_instance(host="10.109.37.182", port=1026) as client:
-        pass
-    print("start script")
-    # DAClient.get_instance()
-
+def fill_database():
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
     geo_feature_collection = generate_feature_collections(
@@ -279,14 +274,21 @@ def main():
         multilinestring=MultiLineString(),  # for rows
         polygon=Polygon(),  # for parcel area
     )
-    wheat_parcel = create_parcel(
+    create_parcel(
         location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil
     )
+
+
+def main():
+    DAClient.get_instance(host="10.109.37.182", port=1026)
+
     search_params = {"type": "AgriParcel", "q": 'description=="initial_site"'}
     my_parcels = search(search_params)
     print(f"database contains {my_parcels}")
 
 
 if __name__ == "__main__":
-    # kubectl cp digitaltwin/fill_database.py  digitaltwin-container-p2h58:/app/digitaltwin/fill_database.py
+    # kubectl cp digitaltwin/fill_database.py  digitaltwin-container:/app/digitaltwin/fill_database.py
+    # kubectl exec digitaltwin-container -- poetry run python /app/digitaltwin/fill_database.py
+
     main()

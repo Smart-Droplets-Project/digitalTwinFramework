@@ -17,6 +17,7 @@ from pcse.engine import Engine
 from pcse.base.parameter_providers import ParameterProvider
 from typing import List
 
+from sd_data_adapter.client import DAClient
 from sd_data_adapter.api import upload, search, get_by_id, update
 import sd_data_adapter.models.agri_food as agri_food_model
 import sd_data_adapter.models.autonomous_mobile_robot as robot_model
