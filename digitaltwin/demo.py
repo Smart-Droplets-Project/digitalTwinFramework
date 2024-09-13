@@ -9,7 +9,7 @@ from geojson import (
 )
 from typing import Union
 import yaml
-
+import argparse
 
 import pcse
 from pcse.engine import Engine
@@ -266,6 +266,16 @@ def generate_rec_message_id(day, parcel_id):
     return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
 
 
+def get_default_searchparams():
+    return {"type": "AgriParcel", "q": 'description=="initial_site"'}
+
+
+def has_demodata(search_params=None):
+    if search_params is None:
+        search_params = get_default_searchparams()
+    return search(search_params) is not None
+
+
 def fill_database():
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
@@ -280,9 +290,18 @@ def fill_database():
 
 
 def main():
-    DAClient.get_instance(host="10.109.37.182", port=1026)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--host", type=str, default="localhost", help="Hostname orion context broker"
+    )
 
-    search_params = {"type": "AgriParcel", "q": 'description=="initial_site"'}
+    args = parser.parse_args()
+
+    DAClient.get_instance(host=args.host, port=1026)
+    search_params = get_default_searchparams()
+    if not has_demodata(search_params):
+        fill_database()
+
     my_parcels = search(search_params)
     print(f"database contains {my_parcels}")
 
