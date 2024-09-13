@@ -273,7 +273,7 @@ def get_default_searchparams():
 def has_demodata(search_params=None):
     if search_params is None:
         search_params = get_default_searchparams()
-    return search(search_params) is not None
+    return bool(search(search_params))
 
 
 def fill_database():
