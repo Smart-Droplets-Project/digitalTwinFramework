@@ -9,21 +9,18 @@ from geojson import (
 )
 from typing import Union
 import yaml
-import numpy as np
+import argparse
 
 import pcse
-from pcse.base import WeatherDataProvider
 from pcse.engine import Engine
 from pcse.base.parameter_providers import ParameterProvider
 from typing import List
 
 from sd_data_adapter.client import DAClient
-from sd_data_adapter.api import upload, search, get_by_id, update
+from sd_data_adapter.api import upload, search, get_by_id
 import sd_data_adapter.models.agri_food as agri_food_model
-import sd_data_adapter.models.autonomous_mobile_robot as robot_model
 
 from utils.agromanagement_util import AgroManagement
-from utils.cropgym_helpers import extract_digital_twin_obs, placeholder_recommendation
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 # ROOT_DIR = os.path.dirname(os.path.dirname(SRC_DIR))
@@ -57,50 +54,6 @@ def get_config_files() -> dict:
         "agro_config": agro_config,
         "model_config": model_config,
     }
-
-
-class DMPWeatherProvider(pcse.base.weather.WeatherDataProvider):
-    def add(self, weather_dict):
-        wdc = pcse.base.weather.WeatherDataContainer(**weather_dict)
-        self._store_WeatherDataContainer(wdc, weather_dict["DAY"])
-
-
-def get_weather(df, day) -> dict:
-    return df.loc[df["DAY"] == day].to_dict(orient="records")[0]
-
-
-# some helper functions that we will use later on
-def daterange(start_date, end_date) -> datetime.date:
-    for n in range(int((end_date - start_date).days)):
-        yield start_date + datetime.timedelta(n)
-
-
-# to_obs converts state variables of the crop growth model weather data to a "tensor" that can be fed to the AI agent
-def to_obs(crop_data, weather_data) -> Union[list, np.array]:
-    crop_variables = [
-        "DVS",
-        "TAGP",
-        "LAI",
-        "NuptakeTotal",
-        "TRA",
-        "NO3",
-        "NH4",
-        "SM",
-        "RFTRA",
-        "WSO",
-    ]
-    weather_variables = ["IRRAD", "TMIN", "RAIN"]
-    timestep = 7
-
-    obs = np.zeros(len(crop_variables) + timestep * len(weather_variables))
-    for i, feature in enumerate(crop_variables):
-        obs[i] = crop_data[feature]
-
-    for d in range(timestep):
-        for i, feature in enumerate(weather_variables):
-            j = d * len(weather_variables) + len(crop_variables) + i
-            obs[j] = getattr(weather_data[d], feature)
-    return obs
 
 
 def get_weather_provider(
@@ -308,30 +261,22 @@ def create_digital_twins(parcels: List[agri_food_model.AgriParcel]) -> dict:
     return digital_twin_dict
 
 
-def get_recommendation_message(recommendation, day, parcel_id):
-    return f"rec-fertilize:{recommendation}:day:{day}:parcel_id:{parcel_id}"  # might need to change
-
-
-def create_command_message(
-    message_id, command, command_time, waypoints, do_upload=True
-):
-    model = robot_model.CommandMessage(
-        id=message_id,
-        command=command,
-        commandTime=command_time,
-        waypoints=waypoints,
-    )
-    if do_upload:
-        upload(model)
-    return model
-
-
 # TODO do executions in appropriate methods
 def generate_rec_message_id(day, parcel_id):
     return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
 
 
-def main():
+def get_default_searchparams():
+    return {"type": "AgriParcel", "q": 'description=="initial_site"'}
+
+
+def has_demodata(search_params=None):
+    if search_params is None:
+        search_params = get_default_searchparams()
+    return search(search_params) is not None
+
+
+def fill_database():
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
     geo_feature_collection = generate_feature_collections(
@@ -339,39 +284,30 @@ def main():
         multilinestring=MultiLineString(),  # for rows
         polygon=Polygon(),  # for parcel area
     )
-    wheat_parcel = create_parcel(
+    create_parcel(
         location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil
     )
-    search_params = {"type": "AgriParcel", "q": 'description=="initial_site"'}
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--host", type=str, default="localhost", help="Hostname orion context broker"
+    )
+
+    args = parser.parse_args()
+
+    DAClient.get_instance(host=args.host, port=1026)
+    search_params = get_default_searchparams()
+    if not has_demodata(search_params):
+        fill_database()
+
     my_parcels = search(search_params)
     print(f"database contains {my_parcels}")
 
-    digital_twin_dicts = create_digital_twins([wheat_parcel])
-
-    # generate example commandmessage for tractor
-    obs, day = extract_digital_twin_obs(
-        output=digital_twin_dicts[wheat_parcel.id].get_output()
-    )
-
-    recommendation = placeholder_recommendation(
-        obs
-    )  # replace when digital twin logic ready
-
-    recommendation_message = get_recommendation_message(
-        recommendation=recommendation, day=day, parcel_id=wheat_parcel.id
-    )
-
-    command_message_id = generate_rec_message_id(day=day, parcel_id=wheat_parcel.id)
-
-    command = create_command_message(
-        message_id=command_message_id,
-        command=recommendation_message,
-        command_time=day,
-        waypoints=get_row_coordinates(wheat_parcel.location),
-    )
-
-    print(command.command)
-
 
 if __name__ == "__main__":
+    # kubectl cp digitaltwin/fill_database.py  digitaltwin-container:/app/digitaltwin/fill_database.py
+    # kubectl exec digitaltwin-container -- poetry run python /app/digitaltwin/fill_database.py
+
     main()

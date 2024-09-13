@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: digitaltwin-container  # Fixed pod name
+spec:
+  containers:
+  - name: digitaltwin-container
+    image: digitaltwin
+    imagePullPolicy: Never
+    command: ["sleep", "infinity"]  # Keeps the container alive
+  restartPolicy: Always
+
