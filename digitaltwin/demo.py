@@ -225,17 +225,15 @@ def create_digital_twins(parcels: List[agri_food_model.AgriParcel]) -> dict:
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
     )
-
     digital_twin_dict = {}
     for parcel in parcels:
-        crop = get_by_id(parcel.hasAgriCrop)
-        soil = get_by_id(parcel.hasAgriSoil)
+        crop = get_by_id(parcel.hasAgriCrop["object"])
+        soil = get_by_id(parcel.hasAgriSoil["object"])
         crop_name, variety_name = get_crop_and_variety_name(crop)
         planting_date, harvest_date = (
             datetime.datetime.strptime(crop.plantingFrom[0], "%Y%m%d"),
             datetime.datetime.strptime(crop.plantingFrom[1], "%Y%m%d"),
         )
-
         soil_parameters = get_soil_parameters(soil)
         site_parameters = get_site_parameters(parcel)
         agro_config = get_agro_config(
@@ -270,10 +268,10 @@ def get_default_searchparams():
     return {"type": "AgriParcel", "q": 'description=="initial_site"'}
 
 
-def has_demodata(search_params=None):
+def search_database(search_params=None):
     if search_params is None:
         search_params = get_default_searchparams()
-    return bool(search(search_params))
+    return search(search_params)
 
 
 def fill_database():
@@ -289,25 +287,34 @@ def fill_database():
     )
 
 
+def has_demodata(search_params=None):
+    return bool(search_database(search_params))
+
+
+def get_or_create_parcels():
+    if not has_demodata():
+        fill_database()
+    return search_database()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--host", type=str, default="localhost", help="Hostname orion context broker"
     )
-
     args = parser.parse_args()
 
     DAClient.get_instance(host=args.host, port=1026)
-    search_params = get_default_searchparams()
-    if not has_demodata(search_params):
-        fill_database()
 
-    my_parcels = search(search_params)
-    print(f"database contains {my_parcels}")
+    with DAClient.get_instance() as client:
+        client.purge()
+
+    parcels = get_or_create_parcels()
+
+    print(f"database contains {parcels}")
+    digital_twin_dicts = create_digital_twins(parcels)
+    print(digital_twin_dicts)
 
 
 if __name__ == "__main__":
-    # kubectl cp digitaltwin/fill_database.py  digitaltwin-container:/app/digitaltwin/fill_database.py
-    # kubectl exec digitaltwin-container -- poetry run python /app/digitaltwin/fill_database.py
-
     main()

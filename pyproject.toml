@@ -13,9 +13,9 @@ onnxruntime = "^1.18.0"
 numpy = "^2.0.0"
 ngsildclient = "^0.5.2"
 geojson= "^2.5.0"
-sd_data_adapter = { path = "./smartDropletsDataAdapters" }
 gymnasium = "^0.29.1"
 jupyter = "^1.1.1"
+sd-data-adapter = {path = "smartDropletsDataAdapters", develop = true}
 
 [build-system]
 requires = ["poetry-core"]
