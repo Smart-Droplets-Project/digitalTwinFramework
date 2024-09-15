@@ -94,6 +94,32 @@ def create_crop(crop_type: str, do_upload=True) -> agri_food_model.AgriCrop:
     return model
 
 
+def create_fertilizer(do_upload=True) -> agri_food_model.AgriProductType:
+    model = agri_food_model.AgriProductType(type="fertilizer", name="Nitrogen")
+    if do_upload:
+        upload(model)
+    return model
+
+
+def create_fertilizer_application(
+    parcel: agri_food_model.AgriParcel,
+    product: agri_food_model.AgriProductType,
+    quantity=60,
+    date: str = "20230401",
+    do_upload=True,
+) -> agri_food_model.AgriParcelOperation:
+    model = agri_food_model.AgriParcelOperation(
+        operationType="fertiliser",
+        hasAgriParcel=parcel.id,
+        hasAgriProductType=product.id,
+        plannedStartAt=date,
+        quantity=quantity,
+    )
+    if do_upload:
+        upload(model)
+    return model
+
+
 def create_parcel(
     location: Union[FeatureCollection, Point, MultiLineString, Polygon],
     area_parcel: float,
@@ -221,7 +247,9 @@ def get_row_coordinates(
     return multi_line_string_coords
 
 
-def create_digital_twins(parcels: List[agri_food_model.AgriParcel]) -> dict:
+def create_digital_twins(
+    parcels: List[agri_food_model.AgriParcel],
+) -> dict[agri_food_model.AgriParcel.id, pcse.engine.Engine]:
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
     )
@@ -264,14 +292,8 @@ def generate_rec_message_id(day, parcel_id):
     return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
 
 
-def get_default_searchparams():
+def get_demo_parcels():
     return {"type": "AgriParcel", "q": 'description=="initial_site"'}
-
-
-def search_database(search_params=None):
-    if search_params is None:
-        search_params = get_default_searchparams()
-    return search(search_params)
 
 
 def fill_database():
@@ -282,19 +304,22 @@ def fill_database():
         multilinestring=MultiLineString(),  # for rows
         polygon=Polygon(),  # for parcel area
     )
-    create_parcel(
+    parcel = create_parcel(
         location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil
+    )
+    fertilizer = create_fertilizer()
+    fertilizer_application = create_fertilizer_application(
+        parcel=parcel, product=fertilizer
     )
 
 
-def has_demodata(search_params=None):
-    return bool(search_database(search_params))
+def has_demodata():
+    return bool(search(get_demo_parcels()))
 
 
-def get_or_create_parcels():
-    if not has_demodata():
-        fill_database()
-    return search_database()
+def daterange(start_date, end_date):
+    for n in range(int((end_date - start_date).days)):
+        yield start_date + datetime.timedelta(n)
 
 
 def main():
@@ -306,14 +331,29 @@ def main():
 
     DAClient.get_instance(host=args.host, port=1026)
 
+    # clear database
     with DAClient.get_instance() as client:
         client.purge()
 
-    parcels = get_or_create_parcels()
+    # fill database with demo data
+    if not has_demodata():
+        fill_database()
 
-    print(f"database contains {parcels}")
+    # get parcels from database
+    parcels = search(get_demo_parcels())
+
+    # create digital twins
     digital_twin_dicts = create_digital_twins(parcels)
-    print(digital_twin_dicts)
+
+    # run digital twins
+    for parcel, crop_model in digital_twin_dicts.items():
+        parcel_operation = search(
+            {"type": "AgriParcelOperation", "q": f'hasAgriParcel=="{parcel}"'}
+        )
+        fertilization_date = datetime.datetime.strptime(
+            parcel_operation[0].plannedStartAt, "%Y%m%d"
+        )
+        print(f"{fertilization_date}: {parcel_operation}")
 
 
 if __name__ == "__main__":
