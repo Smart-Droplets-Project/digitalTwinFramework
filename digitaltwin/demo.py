@@ -12,7 +12,6 @@ import yaml
 import argparse
 
 import pcse
-from pcse.engine import Engine
 from pcse.base.parameter_providers import ParameterProvider
 from typing import List
 
@@ -26,6 +25,72 @@ SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 # ROOT_DIR = os.path.dirname(os.path.dirname(SRC_DIR))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
 PCSE_MODEL_CONF_DIR = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
+
+
+class CropModel(pcse.engine.Engine):
+    """
+    Wraps around the PCSE engine/crop model for correct rate updates after fertilization action and
+    to set a flag when the simulation has terminated
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._flag_terminated = False
+
+    def _run(self, action):
+        """Make one time step of the simulation."""
+
+        # Update timer
+        self.day, delt = self.timer()
+
+        # State integration
+        self.integrate(self.day, delt)
+
+        # Driving variables
+        self.drv = self._get_driving_variables(self.day)
+
+        # Agromanagement decisions
+        self.agromanager(self.day, self.drv)
+
+        # Do actions
+        if action > 0:
+            self._send_signal(
+                signal=pcse.signals.apply_n_snomin,
+                amount=action,
+                application_depth=10.0,
+                cnratio=0.0,
+                f_orgmat=0.0,
+                f_NH4N=0.5,
+                f_NO3N=0.5,
+                initial_age=0,
+            )
+        # Rate calculation
+        self.calc_rates(self.day, self.drv)
+
+        if self.flag_terminate is True:
+            self._terminate_simulation(self.day)
+
+    def run(self, days=1, action=0):
+        """Advances the system state with given number of days"""
+
+        # do action at end of time step
+        days_counter = days
+        days_done = 0
+        while (days_done < days) and (self.flag_terminate is False):
+            days_done += 1
+            days_counter -= 1
+            if days_counter > 0:
+                self._run(0)
+            else:
+                self._run(action)
+
+    @property
+    def terminated(self):
+        return self._flag_terminated
+
+    def _terminate_simulation(self, day):
+        super()._terminate_simulation(day)
+        self._flag_terminated = True
 
 
 def get_weather_provider(
@@ -247,7 +312,7 @@ def create_digital_twins(
         parameter_provider = ParameterProvider(
             cropdata=crop_parameters, sitedata=site_parameters, soildata=soil_parameters
         )
-        crop_growth_model = pcse.engine.Engine(
+        crop_growth_model = CropModel(
             parameterprovider=parameter_provider,
             weatherdataprovider=weatherdataprovider,
             agromanagement=agro_config,
@@ -265,6 +330,10 @@ def generate_rec_message_id(day, parcel_id):
 
 def get_demo_parcels():
     return {"type": "AgriParcel", "q": 'description=="initial_site"'}
+
+
+def find_parcel_operations(parcel):
+    return search({"type": "AgriParcelOperation", "q": f'hasAgriParcel=="{parcel}"'})
 
 
 def fill_database():
@@ -293,6 +362,17 @@ def daterange(start_date, end_date):
         yield start_date + datetime.timedelta(n)
 
 
+def get_parcel_operation_by_date(parcel_operations, target_date):
+    matching_operations = list(
+        filter(
+            lambda op: datetime.datetime.strptime(op.plannedStartAt, "%Y%m%d").date()
+            == target_date,
+            parcel_operations,
+        )
+    )
+    return matching_operations[0] if matching_operations else None
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -318,14 +398,14 @@ def main():
 
     # run digital twins
     for parcel, crop_model in digital_twin_dicts.items():
-        parcel_operation = search(
-            {"type": "AgriParcelOperation", "q": f'hasAgriParcel=="{parcel}"'}
-        )
-        fertilization_date = datetime.datetime.strptime(
-            parcel_operation[0].plannedStartAt, "%Y%m%d"
-        )
-        print(f"{fertilization_date}: {parcel_operation}")
-        crop_model.run_till_terminate()
+        parcel_operations = find_parcel_operations(parcel)
+        # run crop model
+        while crop_model.flag_terminate is False:
+            parcel_operation = get_parcel_operation_by_date(
+                parcel_operations, crop_model.day
+            )
+            action = parcel_operation.quantity if parcel_operation else 0
+            crop_model.run(1, action)
         print(crop_model.get_summary_output())
 
 
