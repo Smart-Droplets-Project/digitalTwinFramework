@@ -28,34 +28,6 @@ CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
 PCSE_MODEL_CONF_DIR = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
 
 
-# TODO placeholders for now. Config files will change when needed.
-def get_config_files() -> dict:
-    crop_parameters = pcse.input.YAMLCropDataProvider(
-        fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
-    )
-    site_parameters = yaml.safe_load(
-        open(os.path.join(CONFIGS_DIR, "site", "initial_site.yaml"))
-    )
-    soil_parameters = yaml.safe_load(
-        open(os.path.join(CONFIGS_DIR, "soil", "layered_soil.yaml"))
-    )
-
-    parameter_provider = ParameterProvider(
-        crop_parameters, site_parameters, soil_parameters
-    )
-
-    agro_config = os.path.join(
-        os.path.join(CONFIGS_DIR, "agro", "wheat_cropcalendar.yaml")
-    )
-    model_config = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
-
-    return {
-        "parameter_provider": parameter_provider,
-        "agro_config": agro_config,
-        "model_config": model_config,
-    }
-
-
 def get_weather_provider(
     parcel: agri_food_model.AgriParcel,
 ) -> pcse.input.NASAPowerWeatherDataProvider:
@@ -79,7 +51,7 @@ def create_crop(crop_type: str, do_upload=True) -> agri_food_model.AgriCrop:
     :return: AgriCrop entity
     """
     model = agri_food_model.AgriCrop(
-        alternateName="Triticum aestivum L." if crop_type == "wheat" else "",
+        alternateName="Arminda" if crop_type == "wheat" else "",
         description=crop_type,
         dateCreated=str(datetime.datetime.now()),
         dateModified=str(datetime.datetime.now()),
@@ -273,7 +245,7 @@ def create_digital_twins(
         weatherdataprovider = get_weather_provider(parcel)
 
         parameter_provider = ParameterProvider(
-            crop_parameters, site_parameters, soil_parameters
+            cropdata=crop_parameters, sitedata=site_parameters, soildata=soil_parameters
         )
         crop_growth_model = pcse.engine.Engine(
             parameterprovider=parameter_provider,
@@ -281,7 +253,6 @@ def create_digital_twins(
             agromanagement=agro_config,
             config=PCSE_MODEL_CONF_DIR,
         )
-
         digital_twin_dict[parcel.id] = crop_growth_model
 
     return digital_twin_dict
@@ -354,6 +325,8 @@ def main():
             parcel_operation[0].plannedStartAt, "%Y%m%d"
         )
         print(f"{fertilization_date}: {parcel_operation}")
+        crop_model.run_till_terminate()
+        print(crop_model.get_summary_output())
 
 
 if __name__ == "__main__":
