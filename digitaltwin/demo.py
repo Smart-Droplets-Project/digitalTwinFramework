@@ -452,14 +452,12 @@ def main():
             if crop_model.get_output()[-1]["LAI"] is not None:
                 # TODO: search devices for LAI_device
                 lai_device = devices[0]
-                # TODO: create uniq ID
-                if False:
-                    create_device_measurement(
-                        device=lai_device,
-                        date_observed=crop_model.get_output()[-1]["day"].isoformat()
-                        + "T00:00:00Z",
-                        value=0.3,
-                    )
+                create_device_measurement(
+                    device=lai_device,
+                    date_observed=crop_model.get_output()[-1]["day"].isoformat()
+                    + "T00:00:00Z",
+                    value=0.3,
+                )
         print(crop_model.get_summary_output())
 
 
