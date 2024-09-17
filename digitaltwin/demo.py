@@ -18,6 +18,8 @@ from typing import List
 from sd_data_adapter.client import DAClient
 from sd_data_adapter.api import upload, search, get_by_id
 import sd_data_adapter.models.agri_food as agri_food_model
+from sd_data_adapter.models import AgriFood
+
 
 from utils.agromanagement_util import AgroManagement
 
@@ -333,7 +335,10 @@ def get_demo_parcels():
 
 
 def find_parcel_operations(parcel):
-    return search({"type": "AgriParcelOperation", "q": f'hasAgriParcel=="{parcel}"'})
+    return search(
+        {"type": "AgriParcelOperation", "q": f'hasAgriParcel=="{parcel}"'},
+        ctx=AgriFood.ctx,
+    )
 
 
 def fill_database():
@@ -391,7 +396,8 @@ def main():
         fill_database()
 
     # get parcels from database
-    parcels = search(get_demo_parcels())
+    parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
+    print(f"parcels: {parcels}")
 
     # create digital twins
     digital_twin_dicts = create_digital_twins(parcels)
