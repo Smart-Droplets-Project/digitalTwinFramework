@@ -18,7 +18,8 @@ from typing import List
 from sd_data_adapter.client import DAClient
 from sd_data_adapter.api import upload, search, get_by_id
 import sd_data_adapter.models.agri_food as agri_food_model
-from sd_data_adapter.models import AgriFood
+import sd_data_adapter.models.device as device_model
+from sd_data_adapter.models import AgriFood, Devices
 
 
 from utils.agromanagement_util import AgroManagement
@@ -221,6 +222,26 @@ def create_agrisoil(do_upload=True):
     return model
 
 
+def create_device(crop: agri_food_model.agriCrop, variable: str, do_upload=True):
+    model = device_model.Device(controlledProperty=variable, controlledAsset=crop.id)
+    if do_upload:
+        upload(model)
+    return model
+
+
+def create_device_measurement(
+    device: device_model.Device, date_observed: str, value: float, do_upload=True
+):
+    model = device_model.DeviceMeasurement(
+        dateObserved=date_observed,
+        numValue=value,
+        refDevice=device.id,
+    )
+    if do_upload:
+        upload(model)
+    return model
+
+
 def get_agro_config(
     crop_name: str,
     variety_name: str,
@@ -341,6 +362,18 @@ def find_parcel_operations(parcel):
     )
 
 
+def find_crop(parcel_id):
+    parcel = get_by_id(parcel_id, ctx=AgriFood.ctx)
+    return parcel.hasAgriCrop["object"]
+
+
+def find_device(crop_id):
+    return search(
+        {"type": "Device", "q": f'controlledAsset=="{crop_id}"'},
+        ctx=Devices.ctx,
+    )
+
+
 def fill_database():
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
@@ -356,6 +389,7 @@ def fill_database():
     fertilizer_application = create_fertilizer_application(
         parcel=parcel, product=fertilizer
     )
+    device = create_device(crop=wheat_crop, variable="LAI")
 
 
 def has_demodata():
@@ -403,8 +437,10 @@ def main():
     digital_twin_dicts = create_digital_twins(parcels)
 
     # run digital twins
-    for parcel, crop_model in digital_twin_dicts.items():
-        parcel_operations = find_parcel_operations(parcel)
+    for parcel_id, crop_model in digital_twin_dicts.items():
+        parcel_operations = find_parcel_operations(parcel_id)
+        devices = find_device(find_crop(parcel_id))
+
         # run crop model
         while crop_model.flag_terminate is False:
             parcel_operation = get_parcel_operation_by_date(
@@ -412,6 +448,18 @@ def main():
             )
             action = parcel_operation.quantity if parcel_operation else 0
             crop_model.run(1, action)
+
+            if crop_model.get_output()[-1]["LAI"] is not None:
+                # TODO: search devices for LAI_device
+                lai_device = devices[0]
+                # TODO: create uniq ID
+                if False:
+                    create_device_measurement(
+                        device=lai_device,
+                        date_observed=crop_model.get_output()[-1]["day"].isoformat()
+                        + "T00:00:00Z",
+                        value=0.3,
+                    )
         print(crop_model.get_summary_output())
 
 
