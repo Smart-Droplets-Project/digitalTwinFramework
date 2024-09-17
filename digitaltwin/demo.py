@@ -412,6 +412,16 @@ def get_parcel_operation_by_date(parcel_operations, target_date):
     return matching_operations[0] if matching_operations else None
 
 
+def get_matching_device(devices, variable: str):
+    matching_devices = list(
+        filter(
+            lambda op: op.controlledProperty == variable,
+            devices,
+        )
+    )
+    return matching_devices[0] if matching_devices else None
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -440,6 +450,7 @@ def main():
     for parcel_id, crop_model in digital_twin_dicts.items():
         parcel_operations = find_parcel_operations(parcel_id)
         devices = find_device(find_crop(parcel_id))
+        lai_device = get_matching_device(devices, "LAI")
 
         # run crop model
         while crop_model.flag_terminate is False:
@@ -450,8 +461,6 @@ def main():
             crop_model.run(1, action)
 
             if crop_model.get_output()[-1]["LAI"] is not None:
-                # TODO: search devices for LAI_device
-                lai_device = devices[0]
                 create_device_measurement(
                     device=lai_device,
                     date_observed=crop_model.get_output()[-1]["day"].isoformat()
