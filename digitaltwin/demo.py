@@ -12,13 +12,14 @@ import yaml
 import argparse
 
 import pcse
-from pcse.engine import Engine
 from pcse.base.parameter_providers import ParameterProvider
 from typing import List
 
 from sd_data_adapter.client import DAClient
 from sd_data_adapter.api import upload, search, get_by_id
 import sd_data_adapter.models.agri_food as agri_food_model
+from sd_data_adapter.models import AgriFood
+
 
 from utils.agromanagement_util import AgroManagement
 
@@ -28,32 +29,70 @@ CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
 PCSE_MODEL_CONF_DIR = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
 
 
-# TODO placeholders for now. Config files will change when needed.
-def get_config_files() -> dict:
-    crop_parameters = pcse.input.YAMLCropDataProvider(
-        fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
-    )
-    site_parameters = yaml.safe_load(
-        open(os.path.join(CONFIGS_DIR, "site", "initial_site.yaml"))
-    )
-    soil_parameters = yaml.safe_load(
-        open(os.path.join(CONFIGS_DIR, "soil", "layered_soil.yaml"))
-    )
+class CropModel(pcse.engine.Engine):
+    """
+    Wraps around the PCSE engine/crop model for correct rate updates after fertilization action and
+    to set a flag when the simulation has terminated
+    """
 
-    parameter_provider = ParameterProvider(
-        crop_parameters, site_parameters, soil_parameters
-    )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._flag_terminated = False
 
-    agro_config = os.path.join(
-        os.path.join(CONFIGS_DIR, "agro", "wheat_cropcalendar.yaml")
-    )
-    model_config = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
+    def _run(self, action):
+        """Make one time step of the simulation."""
 
-    return {
-        "parameter_provider": parameter_provider,
-        "agro_config": agro_config,
-        "model_config": model_config,
-    }
+        # Update timer
+        self.day, delt = self.timer()
+
+        # State integration
+        self.integrate(self.day, delt)
+
+        # Driving variables
+        self.drv = self._get_driving_variables(self.day)
+
+        # Agromanagement decisions
+        self.agromanager(self.day, self.drv)
+
+        # Do actions
+        if action > 0:
+            self._send_signal(
+                signal=pcse.signals.apply_n_snomin,
+                amount=action,
+                application_depth=10.0,
+                cnratio=0.0,
+                f_orgmat=0.0,
+                f_NH4N=0.5,
+                f_NO3N=0.5,
+                initial_age=0,
+            )
+        # Rate calculation
+        self.calc_rates(self.day, self.drv)
+
+        if self.flag_terminate is True:
+            self._terminate_simulation(self.day)
+
+    def run(self, days=1, action=0):
+        """Advances the system state with given number of days"""
+
+        # do action at end of time step
+        days_counter = days
+        days_done = 0
+        while (days_done < days) and (self.flag_terminate is False):
+            days_done += 1
+            days_counter -= 1
+            if days_counter > 0:
+                self._run(0)
+            else:
+                self._run(action)
+
+    @property
+    def terminated(self):
+        return self._flag_terminated
+
+    def _terminate_simulation(self, day):
+        super()._terminate_simulation(day)
+        self._flag_terminated = True
 
 
 def get_weather_provider(
@@ -79,7 +118,7 @@ def create_crop(crop_type: str, do_upload=True) -> agri_food_model.AgriCrop:
     :return: AgriCrop entity
     """
     model = agri_food_model.AgriCrop(
-        alternateName="Triticum aestivum L." if crop_type == "wheat" else "",
+        alternateName="Arminda" if crop_type == "wheat" else "",
         description=crop_type,
         dateCreated=str(datetime.datetime.now()),
         dateModified=str(datetime.datetime.now()),
@@ -88,6 +127,32 @@ def create_crop(crop_type: str, do_upload=True) -> agri_food_model.AgriCrop:
             "20221003",
             "20230820",
         ],  # List of planting and harvest date in YYYYMMDD in str
+    )
+    if do_upload:
+        upload(model)
+    return model
+
+
+def create_fertilizer(do_upload=True) -> agri_food_model.AgriProductType:
+    model = agri_food_model.AgriProductType(type="fertilizer", name="Nitrogen")
+    if do_upload:
+        upload(model)
+    return model
+
+
+def create_fertilizer_application(
+    parcel: agri_food_model.AgriParcel,
+    product: agri_food_model.AgriProductType,
+    quantity=60,
+    date: str = "20230401",
+    do_upload=True,
+) -> agri_food_model.AgriParcelOperation:
+    model = agri_food_model.AgriParcelOperation(
+        operationType="fertiliser",
+        hasAgriParcel=parcel.id,
+        hasAgriProductType=product.id,
+        plannedStartAt=date,
+        quantity=quantity,
     )
     if do_upload:
         upload(model)
@@ -221,21 +286,21 @@ def get_row_coordinates(
     return multi_line_string_coords
 
 
-def create_digital_twins(parcels: List[agri_food_model.AgriParcel]) -> dict:
+def create_digital_twins(
+    parcels: List[agri_food_model.AgriParcel],
+) -> dict[agri_food_model.AgriParcel.id, pcse.engine.Engine]:
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
     )
-
     digital_twin_dict = {}
     for parcel in parcels:
-        crop = get_by_id(parcel.hasAgriCrop)
-        soil = get_by_id(parcel.hasAgriSoil)
+        crop = get_by_id(parcel.hasAgriCrop["object"])
+        soil = get_by_id(parcel.hasAgriSoil["object"])
         crop_name, variety_name = get_crop_and_variety_name(crop)
         planting_date, harvest_date = (
             datetime.datetime.strptime(crop.plantingFrom[0], "%Y%m%d"),
             datetime.datetime.strptime(crop.plantingFrom[1], "%Y%m%d"),
         )
-
         soil_parameters = get_soil_parameters(soil)
         site_parameters = get_site_parameters(parcel)
         agro_config = get_agro_config(
@@ -247,15 +312,14 @@ def create_digital_twins(parcels: List[agri_food_model.AgriParcel]) -> dict:
         weatherdataprovider = get_weather_provider(parcel)
 
         parameter_provider = ParameterProvider(
-            crop_parameters, site_parameters, soil_parameters
+            cropdata=crop_parameters, sitedata=site_parameters, soildata=soil_parameters
         )
-        crop_growth_model = pcse.engine.Engine(
+        crop_growth_model = CropModel(
             parameterprovider=parameter_provider,
             weatherdataprovider=weatherdataprovider,
             agromanagement=agro_config,
             config=PCSE_MODEL_CONF_DIR,
         )
-
         digital_twin_dict[parcel.id] = crop_growth_model
 
     return digital_twin_dict
@@ -266,14 +330,15 @@ def generate_rec_message_id(day, parcel_id):
     return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
 
 
-def get_default_searchparams():
+def get_demo_parcels():
     return {"type": "AgriParcel", "q": 'description=="initial_site"'}
 
 
-def has_demodata(search_params=None):
-    if search_params is None:
-        search_params = get_default_searchparams()
-    return bool(search(search_params))
+def find_parcel_operations(parcel):
+    return search(
+        {"type": "AgriParcelOperation", "q": f'hasAgriParcel=="{parcel}"'},
+        ctx=AgriFood.ctx,
+    )
 
 
 def fill_database():
@@ -284,9 +349,33 @@ def fill_database():
         multilinestring=MultiLineString(),  # for rows
         polygon=Polygon(),  # for parcel area
     )
-    create_parcel(
+    parcel = create_parcel(
         location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil
     )
+    fertilizer = create_fertilizer()
+    fertilizer_application = create_fertilizer_application(
+        parcel=parcel, product=fertilizer
+    )
+
+
+def has_demodata():
+    return bool(search(get_demo_parcels()))
+
+
+def daterange(start_date, end_date):
+    for n in range(int((end_date - start_date).days)):
+        yield start_date + datetime.timedelta(n)
+
+
+def get_parcel_operation_by_date(parcel_operations, target_date):
+    matching_operations = list(
+        filter(
+            lambda op: datetime.datetime.strptime(op.plannedStartAt, "%Y%m%d").date()
+            == target_date,
+            parcel_operations,
+        )
+    )
+    return matching_operations[0] if matching_operations else None
 
 
 def main():
@@ -294,20 +383,37 @@ def main():
     parser.add_argument(
         "--host", type=str, default="localhost", help="Hostname orion context broker"
     )
-
     args = parser.parse_args()
 
     DAClient.get_instance(host=args.host, port=1026)
-    search_params = get_default_searchparams()
-    if not has_demodata(search_params):
+
+    # clear database
+    with DAClient.get_instance() as client:
+        client.purge()
+
+    # fill database with demo data
+    if not has_demodata():
         fill_database()
 
-    my_parcels = search(search_params)
-    print(f"database contains {my_parcels}")
+    # get parcels from database
+    parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
+    print(f"parcels: {parcels}")
+
+    # create digital twins
+    digital_twin_dicts = create_digital_twins(parcels)
+
+    # run digital twins
+    for parcel, crop_model in digital_twin_dicts.items():
+        parcel_operations = find_parcel_operations(parcel)
+        # run crop model
+        while crop_model.flag_terminate is False:
+            parcel_operation = get_parcel_operation_by_date(
+                parcel_operations, crop_model.day
+            )
+            action = parcel_operation.quantity if parcel_operation else 0
+            crop_model.run(1, action)
+        print(crop_model.get_summary_output())
 
 
 if __name__ == "__main__":
-    # kubectl cp digitaltwin/fill_database.py  digitaltwin-container:/app/digitaltwin/fill_database.py
-    # kubectl exec digitaltwin-container -- poetry run python /app/digitaltwin/fill_database.py
-
     main()
