@@ -431,9 +431,14 @@ def main():
 
     DAClient.get_instance(host=args.host, port=1026)
 
-    # clear database
-    with DAClient.get_instance() as client:
-        client.purge()
+    # clear database with error handling
+    try:
+        with DAClient.get_instance() as client:
+            client.purge()
+        print("Purge completed successfully.")
+    except Exception as e:
+        # Catch any exceptions that occur and print the error message
+        print(f"An error occurred while purging the database: {e}")
 
     # fill database with demo data
     if not has_demodata():
