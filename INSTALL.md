@@ -33,6 +33,6 @@
 5. **Run the Demo:**
    - Execute the demo script:  
      ```bash
-     bash demo.sh
+     demo.sh
      ```
 

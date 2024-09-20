@@ -19,15 +19,32 @@ from sd_data_adapter.client import DAClient
 from sd_data_adapter.api import upload, search, get_by_id
 import sd_data_adapter.models.agri_food as agri_food_model
 import sd_data_adapter.models.device as device_model
-from sd_data_adapter.models import AgriFood, Devices
+import sd_data_adapter.models.autonomous_mobile_robot as autonomous_mobile_robot
+from sd_data_adapter.models import AgriFood, Devices, AutonomousMobileRobot
 
 
 from utils.agromanagement_util import AgroManagement
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
-# ROOT_DIR = os.path.dirname(os.path.dirname(SRC_DIR))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
 PCSE_MODEL_CONF_DIR = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf")
+
+
+def placeholder_recommendation(crop_model_output: dict):
+    year = crop_model_output["day"].year
+    fertilization_dates = [datetime.date(year, 4, 1), datetime.date(year, 5, 1)]
+    result = 0
+    if crop_model_output["day"] in fertilization_dates:
+        result = 60
+    return result
+
+
+def get_recommendation_message(recommendation: float, day: str, parcel_id: str):
+    return f"rec-fertilize:{recommendation}:day:{day}:parcel_id:{parcel_id}"
+
+
+def generate_rec_message_id(day: str, parcel_id: str):
+    return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
 
 
 class CropModel(pcse.engine.Engine):
@@ -242,6 +259,20 @@ def create_device_measurement(
     return model
 
 
+def create_command_message(
+    message_id, command, command_time, waypoints, do_upload=True
+):
+    model = autonomous_mobile_robot.CommandMessage(
+        id=message_id,
+        command=command,
+        commandTime=command_time,
+        waypoints=waypoints,
+    )
+    if do_upload:
+        upload(model)
+    return model
+
+
 def get_agro_config(
     crop_name: str,
     variety_name: str,
@@ -346,11 +377,6 @@ def create_digital_twins(
     return digital_twin_dict
 
 
-# TODO do executions in appropriate methods
-def generate_rec_message_id(day, parcel_id):
-    return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
-
-
 def get_demo_parcels():
     return {"type": "AgriParcel", "q": 'description=="initial_site"'}
 
@@ -374,12 +400,26 @@ def find_device(crop_id):
     )
 
 
+def find_command_messages():
+    return search(
+        {"type": "CommandMessage"},
+        ctx=AutonomousMobileRobot.ctx,
+    )
+
+
 def fill_database():
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
     geo_feature_collection = generate_feature_collections(
         point=Point((52.0, 5.5)),  # for weather data (latitude, longitude)
-        multilinestring=MultiLineString(),  # for rows
+        multilinestring=(
+            MultiLineString(
+                [
+                    [(3.75, 9.25), (-130.95, 1.52)],
+                    [(23.15, -34.25), (-1.35, -4.65), (3.45, 77.95)],
+                ]
+            )
+        ),  # for rows
         polygon=Polygon(),  # for parcel area
     )
     parcel = create_parcel(
@@ -468,11 +508,35 @@ def main():
             if crop_model.get_output()[-1]["LAI"] is not None:
                 create_device_measurement(
                     device=lai_device,
-                    date_observed=crop_model.get_output()[-1]["day"].isoformat()
-                    + "T00:00:00Z",
+                    date_observed=crop_model.day.isoformat() + "T00:00:00Z",
                     value=0.3,
                 )
+
+            # get AI recommendation
+            recommendation = placeholder_recommendation(crop_model.get_output()[-1])
+
+            # create command message
+            if recommendation > 0:
+                recommendation_message = get_recommendation_message(
+                    recommendation=recommendation,
+                    day=crop_model.day.isoformat(),
+                    parcel_id=parcel_id,
+                )
+
+                command_message_id = generate_rec_message_id(
+                    day=crop_model.day.isoformat(), parcel_id=parcel_id
+                )
+                parcel = get_by_id(parcel_id, ctx=AgriFood.ctx)
+                command = create_command_message(
+                    message_id=command_message_id,
+                    command=recommendation_message,
+                    command_time=crop_model.day.isoformat(),
+                    waypoints=get_row_coordinates(parcel.location),
+                )
+
         print(crop_model.get_summary_output())
+        print("The following commands were stored\n")
+        print(find_command_messages())
 
 
 if __name__ == "__main__":
