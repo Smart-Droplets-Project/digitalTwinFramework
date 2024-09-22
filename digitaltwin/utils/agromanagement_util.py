@@ -50,12 +50,11 @@ class AgroManagement:
         )
 
     def set_start_date(self, start_date: datetime.date):
-        self.campaign_date = self.crop_start_date.replace(
-            year=start_date.year, month=1, day=1
-        )
+
         self.crop_start_date = self.crop_start_date.replace(
             year=start_date.year, month=start_date.month, day=start_date.day
         )
+        self.campaign_date = self.crop_start_date - datetime.timedelta(weeks=5)
 
         self.build_structure()
 
