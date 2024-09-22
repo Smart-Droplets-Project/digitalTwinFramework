@@ -462,6 +462,17 @@ def get_matching_device(devices, variable: str):
     return matching_devices[0] if matching_devices else None
 
 
+def clear_database():
+    # clear database with error handling
+    try:
+        with DAClient.get_instance() as client:
+            client.purge()
+        print("Purge completed successfully.")
+    except Exception as e:
+        # Catch any exceptions that occur and print the error message
+        print(f"An error occurred while purging the database: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -471,14 +482,7 @@ def main():
 
     DAClient.get_instance(host=args.host, port=1026)
 
-    # clear database with error handling
-    try:
-        with DAClient.get_instance() as client:
-            client.purge()
-        print("Purge completed successfully.")
-    except Exception as e:
-        # Catch any exceptions that occur and print the error message
-        print(f"An error occurred while purging the database: {e}")
+    clear_database()
 
     # fill database with demo data
     if not has_demodata():
