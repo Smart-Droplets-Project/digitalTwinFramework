@@ -3,26 +3,8 @@ import argparse
 from ascab.env.env import AScabEnv
 
 from sd_data_adapter.client import DAClient
-import sd_data_adapter.models.agri_food as agri_food_model
-from sd_data_adapter.api import upload
-
-
-def clear_database():
-    # clear database with error handling
-    try:
-        with DAClient.get_instance() as client:
-            client.purge()
-        print("Purge completed successfully.")
-    except Exception as e:
-        # Catch any exceptions that occur and print the error message
-        print(f"An error occurred while purging the database: {e}")
-
-
-def create_agripest(do_upload=True):
-    model = agri_food_model.AgriPest(description="ascab")
-    if do_upload:
-        upload(model)
-    return model
+from digitaltwin.services.data_adapter import create_agripest
+from digitaltwin.services.database import clear_database
 
 
 def main():
