@@ -1,4 +1,3 @@
-import datetime
 import argparse
 
 from sd_data_adapter.client import DAClient
@@ -6,13 +5,16 @@ from sd_data_adapter.api import search
 from sd_data_adapter.models import AgriFood
 
 from digitaltwin.cropmodel.crop_model import create_digital_twins
-from digitaltwin.services.data_adapter import (
+from digitaltwin.cropmodel.recommendation import standard_practice
+from digitaltwin.utils.data_adapter import (
     create_device_measurement,
     create_command_message,
     fill_database,
     get_row_coordinates,
+    generate_rec_message_id,
+    get_recommendation_message,
 )
-from digitaltwin.services.database import (
+from digitaltwin.utils.database import (
     get_by_id,
     get_demo_parcels,
     has_demodata,
@@ -21,45 +23,9 @@ from digitaltwin.services.database import (
     find_crop,
     find_command_messages,
     clear_database,
+    get_matching_device,
+    get_parcel_operation_by_date,
 )
-
-
-def placeholder_recommendation(crop_model_output: dict):
-    year = crop_model_output["day"].year
-    fertilization_dates = [datetime.date(year, 4, 1), datetime.date(year, 5, 1)]
-    result = 0
-    if crop_model_output["day"] in fertilization_dates:
-        result = 60
-    return result
-
-
-def get_recommendation_message(recommendation: float, day: str, parcel_id: str):
-    return f"rec-fertilize:{recommendation}:day:{day}:parcel_id:{parcel_id}"
-
-
-def generate_rec_message_id(day: str, parcel_id: str):
-    return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
-
-
-def get_parcel_operation_by_date(parcel_operations, target_date):
-    matching_operations = list(
-        filter(
-            lambda op: datetime.datetime.strptime(op.plannedStartAt, "%Y%m%d").date()
-            == target_date,
-            parcel_operations,
-        )
-    )
-    return matching_operations[0] if matching_operations else None
-
-
-def get_matching_device(devices, variable: str):
-    matching_devices = list(
-        filter(
-            lambda op: op.controlledProperty == variable,
-            devices,
-        )
-    )
-    return matching_devices[0] if matching_devices else None
 
 
 def main():
@@ -106,7 +72,7 @@ def main():
                 )
 
             # get AI recommendation
-            recommendation = placeholder_recommendation(crop_model.get_output()[-1])
+            recommendation = standard_practice(crop_model.get_output()[-1])
 
             # create command message
             if recommendation > 0:

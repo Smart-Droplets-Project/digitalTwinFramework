@@ -199,3 +199,11 @@ def fill_database():
         parcel=parcel, product=fertilizer
     )
     device = create_device(crop=wheat_crop, variable="LAI")
+
+
+def generate_rec_message_id(day: str, parcel_id: str):
+    return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
+
+
+def get_recommendation_message(recommendation: float, day: str, parcel_id: str):
+    return f"rec-fertilize:{recommendation}:day:{day}:parcel_id:{parcel_id}"

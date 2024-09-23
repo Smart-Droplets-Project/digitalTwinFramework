@@ -3,8 +3,8 @@ import argparse
 from ascab.env.env import AScabEnv
 
 from sd_data_adapter.client import DAClient
-from digitaltwin.services.data_adapter import create_agripest
-from digitaltwin.services.database import clear_database
+from digitaltwin.utils.data_adapter import create_agripest
+from digitaltwin.utils.database import clear_database
 
 
 def main():
