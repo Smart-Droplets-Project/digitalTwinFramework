@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "digitaltwinframework"
+name = "digitaltwin"
 version = "0.1.0"
-description = "digitaltwinframework"
+description = "digitaltwin"
 authors = ["Wageningen University and Research"]
 readme = "README.md"
 

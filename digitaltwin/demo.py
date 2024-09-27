@@ -68,7 +68,7 @@ def main():
                 create_device_measurement(
                     device=lai_device,
                     date_observed=crop_model.day.isoformat() + "T00:00:00Z",
-                    value=0.3,
+                    value=crop_model.get_output()[-1]["LAI"],
                 )
 
             # get AI recommendation

@@ -8,7 +8,7 @@ import yaml
 from typing import List
 
 from sd_data_adapter.api import search, get_by_id
-from digitaltwin.cropmodel.agromanagement import AgroManagement
+from .agromanagement import AgroManagement
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")

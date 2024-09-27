@@ -8,4 +8,4 @@ COPY digitalTwinFramework/pyproject.toml /app/
 COPY smartDropletsDataAdapters /app/smartDropletsDataAdapters
 COPY digitalTwinFramework/digitaltwin /app/digitaltwin
 
-RUN poetry install --no-root
+RUN poetry install
