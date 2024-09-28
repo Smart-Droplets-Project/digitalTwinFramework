@@ -2,10 +2,11 @@ FROM python:3.11-slim
 
 RUN pip install poetry
 
-WORKDIR /app
+WORKDIR /app/
 
 COPY digitalTwinFramework/pyproject.toml /app/
-COPY smartDropletsDataAdapters /app/smartDropletsDataAdapters
+COPY digitalTwinFramework/README.md /app/
 COPY digitalTwinFramework/digitaltwin /app/digitaltwin
+COPY smartDropletsDataAdapters /app/smartDropletsDataAdapters
 
 RUN poetry install
