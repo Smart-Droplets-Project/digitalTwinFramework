@@ -5,9 +5,10 @@ from pcse.engine import Engine
 from pcse.base.parameter_providers import ParameterProvider
 import sd_data_adapter.models.agri_food as agri_food_model
 import yaml
-from typing import List
+from typing import Optional, List
 
 from sd_data_adapter.api import search, get_by_id
+from sd_data_adapter.models.smartDataModel import Relationship
 from .agromanagement import AgroManagement
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -21,9 +22,11 @@ class CropModel(pcse.engine.Engine):
     to set a flag when the simulation has terminated
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, parcel_id: str, crop_id: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._flag_terminated = False
+        self._locatedAtParcel: Optional[Relationship] = parcel_id
+        self._isAgriCrop: Optional[Relationship] = crop_id
 
     def _run(self, action):
         """Make one time step of the simulation."""
@@ -143,13 +146,18 @@ def get_site_parameters(site: agri_food_model.agriParcel):
     return site_parameters
 
 
+def get_default_variables():
+    # TODO: make sure that the following aligns with OUTPUT_VARS in Wofost81_NWLP_MLWB_SNOMIN.conf
+    return ["DVS", "LAI", "TAGP", "TWSO"]
+
+
 def create_digital_twins(
     parcels: List[agri_food_model.AgriParcel],
-) -> dict[agri_food_model.AgriParcel.id, pcse.engine.Engine]:
+) -> List[CropModel]:
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
     )
-    digital_twin_dict = {}
+    results = []
     for parcel in parcels:
         crop = get_by_id(parcel.hasAgriCrop["object"])
         soil = get_by_id(parcel.hasAgriSoil["object"])
@@ -176,7 +184,9 @@ def create_digital_twins(
             weatherdataprovider=weatherdataprovider,
             agromanagement=agro_config,
             config=PCSE_MODEL_CONF_DIR,
+            parcel_id=parcel.id,
+            crop_id=crop.id,
         )
-        digital_twin_dict[parcel.id] = crop_growth_model
+        results.append(crop_growth_model)
 
-    return digital_twin_dict
+    return results

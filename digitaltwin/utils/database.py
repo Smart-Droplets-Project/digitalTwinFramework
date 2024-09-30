@@ -1,31 +1,45 @@
 import datetime
+from collections import defaultdict
 
 from sd_data_adapter.client import DAClient
 from sd_data_adapter.models import AgriFood, Devices, AutonomousMobileRobot
 from sd_data_adapter.api import search, get_by_id
 
 
-def get_demo_parcels(description="initial_site"):
+def get_demo_parcels(description: str = "initial_site"):
     return {"type": "AgriParcel", "q": f'description=="{description}"'}
 
 
-def find_parcel_operations(parcel):
+def find_parcel_operations(parcel_id: str):
     return search(
-        {"type": "AgriParcelOperation", "q": f'hasAgriParcel=="{parcel}"'},
+        {"type": "AgriParcelOperation", "q": f'hasAgriParcel=="{parcel_id}"'},
         ctx=AgriFood.ctx,
     )
 
 
-def find_crop(parcel_id):
+def find_crop(parcel_id: str):
     parcel = get_by_id(parcel_id, ctx=AgriFood.ctx)
     return parcel.hasAgriCrop["object"]
 
 
-def find_device(crop_id):
+def find_device(crop_id: str):
     return search(
         {"type": "Device", "q": f'controlledAsset=="{crop_id}"'},
         ctx=Devices.ctx,
     )
+
+
+def count_devices_by_asset():
+    # Fetch all devices
+    all_devices = search({"type": "Device"}, ctx=Devices.ctx)
+    # Dictionary to store count of devices per crop and controlledAsset
+    asset_count = defaultdict(lambda: defaultdict(int))
+    # Loop through each device
+    for device in all_devices:
+        # Increment count for this crop and controlledAsset
+        asset_count[device.controlledAsset][device.controlledProperty] += 1
+
+    return asset_count
 
 
 def find_command_messages():

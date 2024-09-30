@@ -8,6 +8,7 @@ from geojson import (
 )
 from typing import Union
 
+from ..cropmodel.crop_model import get_default_variables
 from sd_data_adapter.api import upload
 import sd_data_adapter.models.agri_food as agri_food_model
 import sd_data_adapter.models.device as device_model
@@ -183,7 +184,7 @@ def get_row_coordinates(
     return multi_line_string_coords
 
 
-def fill_database():
+def fill_database(variables: list[str] = get_default_variables()):
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
     geo_feature_collection = generate_feature_collections(
@@ -198,7 +199,8 @@ def fill_database():
     fertilizer_application = create_fertilizer_application(
         parcel=parcel, product=fertilizer
     )
-    device = create_device(crop=wheat_crop, variable="LAI")
+    for variable in variables:
+        device = create_device(crop=wheat_crop, variable=variable)
 
 
 def generate_rec_message_id(day: str, parcel_id: str):
