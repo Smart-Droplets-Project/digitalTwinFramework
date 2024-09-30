@@ -1,5 +1,4 @@
 import datetime
-from collections import defaultdict
 
 from sd_data_adapter.client import DAClient
 from sd_data_adapter.models import AgriFood, Devices, AutonomousMobileRobot
@@ -27,19 +26,6 @@ def find_device(crop_id: str):
         {"type": "Device", "q": f'controlledAsset=="{crop_id}"'},
         ctx=Devices.ctx,
     )
-
-
-def count_devices_by_asset():
-    # Fetch all devices
-    all_devices = search({"type": "Device"}, ctx=Devices.ctx)
-    # Dictionary to store count of devices per crop and controlledAsset
-    asset_count = defaultdict(lambda: defaultdict(int))
-    # Loop through each device
-    for device in all_devices:
-        # Increment count for this crop and controlledAsset
-        asset_count[device.controlledAsset][device.controlledProperty] += 1
-
-    return asset_count
 
 
 def find_command_messages():

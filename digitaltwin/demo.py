@@ -1,6 +1,5 @@
 import argparse
 
-
 from sd_data_adapter.client import DAClient
 from sd_data_adapter.api import search
 from sd_data_adapter.models import AgriFood
@@ -24,7 +23,6 @@ from digitaltwin.utils.database import (
     find_command_messages,
     clear_database,
     get_parcel_operation_by_date,
-    count_devices_by_asset,
 )
 
 
@@ -98,17 +96,6 @@ def main():
         print(digital_twin.get_summary_output())
         print("The following commands were stored\n")
         print(find_command_messages())
-
-        print("The following simulations were stored\n")
-
-        # Usage example:
-        device_counts = count_devices_by_asset()
-
-        # Display counts
-        for crop_id, assets in device_counts.items():
-            print(f"Crop ID: {crop_id}")
-            for asset, count in assets.items():
-                print(f"  {asset}: {count} devices")
 
 
 if __name__ == "__main__":
