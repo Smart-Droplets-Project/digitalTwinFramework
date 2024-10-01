@@ -1,10 +1,12 @@
 import argparse
 
-from ascab.env.env import AScabEnv
-
 from sd_data_adapter.client import DAClient
-from digitaltwin.utils.data_adapter import create_agripest
-from digitaltwin.utils.database import clear_database
+from sd_data_adapter.api import search
+from sd_data_adapter.models import AgriFood
+
+from digitaltwin.utils.data_adapter import create_agripest, fill_database_ascab
+from digitaltwin.utils.database import clear_database, get_demo_parcels
+from digitaltwin.ascabmodel.ascab_model import AscabModel, create_digital_twins
 
 
 def main():
@@ -17,21 +19,25 @@ def main():
     DAClient.get_instance(host=args.host, port=1026)
 
     clear_database()
-
+    fill_database_ascab()
     create_agripest()
 
-    ascab = AScabEnv(location=(42.1620, 3.0924), dates=("2022-01-01", "2022-10-01"))
+    parcels = search(get_demo_parcels("Serrater"), ctx=AgriFood.ctx)
+    print(f"parcels: {parcels}")
 
-    # run digital twin
-    terminated = False
-    ascab.reset()
-    action = 0.0
-    while not terminated:
-        _, _, terminated, _, _ = ascab.step(action)
+    digital_twins = create_digital_twins(parcels)
 
-    # get output
-    summary_output = ascab.get_info(to_dataframe=True)
-    print(summary_output)
+    # run digital twins
+    for digital_twin in digital_twins:
+        terminated = False
+        digital_twin.reset()
+        action = 0.0
+        while not terminated:
+            _, _, terminated, _, _ = digital_twin.step(action)
+
+        # get output
+        summary_output = digital_twin.get_info(to_dataframe=True)
+        print(summary_output)
 
 
 if __name__ == "__main__":

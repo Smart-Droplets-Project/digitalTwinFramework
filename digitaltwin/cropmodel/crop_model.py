@@ -1,13 +1,12 @@
 import datetime
 import os
+import yaml
+from typing import Optional, List
 import pcse
 from pcse.engine import Engine
 from pcse.base.parameter_providers import ParameterProvider
 import sd_data_adapter.models.agri_food as agri_food_model
-import yaml
-from typing import Optional, List
-
-from sd_data_adapter.api import search, get_by_id
+from sd_data_adapter.api import get_by_id
 from sd_data_adapter.models.smartDataModel import Relationship
 from .agromanagement import AgroManagement
 
@@ -17,10 +16,6 @@ PCSE_MODEL_CONF_DIR = os.path.join(CONFIGS_DIR, "Wofost81_NWLP_MLWB_SNOMIN.conf"
 
 
 class CropModel(pcse.engine.Engine):
-    """
-    Wraps around the PCSE engine/crop model for correct rate updates after fertilization action and
-    to set a flag when the simulation has terminated
-    """
 
     def __init__(self, parcel_id: str, crop_id: str, *args, **kwargs):
         super().__init__(*args, **kwargs)

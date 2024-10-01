@@ -6,7 +6,7 @@ from geojson import (
     Feature,
     FeatureCollection,
 )
-from typing import Union
+from typing import Union, Optional
 
 from ..cropmodel.crop_model import get_default_variables
 from sd_data_adapter.api import upload
@@ -117,8 +117,11 @@ def create_parcel(
     location: Union[FeatureCollection, Point, MultiLineString, Polygon],
     area_parcel: float,
     crop: agri_food_model.AgriCrop,
-    soil: agri_food_model.AgriSoil,
+    soil: Optional[agri_food_model.AgriSoil] = None,
     do_upload=True,
+    name: str = "Wheat Parcel 1",
+    address: str = "Farming Street 1",
+    desciption: str = "Lithuania",
 ) -> agri_food_model.AgriParcel:
     """
     Function to initialize a parcel Entity.
@@ -132,16 +135,19 @@ def create_parcel(
     :param crop: A SmartDataModel crop entity
     :param soil: A SmartDataModel soil entity
     :param do_upload: Bool to upload entity to Data Management Platform
+    :param name: Name of the parcel
+    :param address: address of the parcel
+    :param description: description of the parcel
     :return: AgriParcel SmartDataModel entity
     """
     model = agri_food_model.AgriParcel(
-        name="Wheat Parcel 1",
-        address="Farming Street 1",
+        name=name,
+        address=address,
         location=location,
         area=area_parcel,
         hasAgriCrop=crop.id,
-        hasAgriSoil=soil.id,
-        description="Lithuania",  # TODO placeholder description
+        **({"hasAgriSoil": soil.id} if soil else {}),
+        description=desciption,
     )
     if do_upload:
         upload(model)
@@ -214,6 +220,32 @@ def fill_database(variables: list[str] = get_default_variables()):
     )
     for variable in variables:
         device = create_device(crop=wheat_crop, variable=variable)
+
+
+def fill_database_ascab():
+    apple_crop = create_crop("apple")
+    geo_feature_collection = generate_feature_collections(
+        point=Point((42.16, 3.09)),  # for weather data (latitude, longitude)
+        multilinestring=(MultiLineString()),  # for rows
+        polygon=Polygon(
+            [
+                [
+                    (3.0928589, 42.1628388),
+                    (3.0927731, 42.1615902),
+                    (3.0961419, 42.1613676),
+                    (3.0962492, 42.1625684),
+                    (3.0928589, 42.1628388),
+                ]
+            ]
+        ),
+    )
+
+    parcel = create_parcel(
+        location=geo_feature_collection,
+        area_parcel=20,
+        crop=apple_crop,
+        desciption="Serrater",
+    )
 
 
 def generate_rec_message_id(day: str, parcel_id: str):
