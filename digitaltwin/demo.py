@@ -71,12 +71,14 @@ def main():
                     )
 
             # get AI recommendation
+
             recommendation = standard_practice(digital_twin.get_output()[-1])
 
             # create command message
             if recommendation > 0:
                 recommendation_message = get_recommendation_message(
-                    recommendation=recommendation,
+                    type="fertilize",
+                    amount=recommendation,
                     day=digital_twin.day.isoformat(),
                     parcel_id=digital_twin._locatedAtParcel,
                 )

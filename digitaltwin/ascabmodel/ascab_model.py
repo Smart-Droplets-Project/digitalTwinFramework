@@ -10,8 +10,9 @@ class AscabModel(AScabEnv):
         self,
         parcel_id: Optional[str] = None,
         crop_id: Optional[str] = None,
+        pest_id: Optional[str] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         # Initialize attributes only if they are not already set
@@ -22,6 +23,17 @@ class AscabModel(AScabEnv):
         )
         self._isAgriCrop: Optional[Relationship] = (
             crop_id if crop_id is not None else getattr(self, "_isAgriCrop", None)
+        )
+        self._isAgriPest: Optional[Relationship] = (
+            pest_id if pest_id is not None else getattr(self, "_isAgriPest", None)
+        )
+
+    def __str__(self):
+        return (
+            f"AscabModel for {self._isAgriPest}, "
+            f"located at parcel: {self._locatedAtParcel}, "
+            f"agri crop: {self._isAgriCrop}, "
+            f"location: {self.location}, dates: {self.dates}, "
         )
 
 
@@ -47,6 +59,7 @@ def create_digital_twins(
         ascab = AscabModel(
             parcel_id=parcel.id,
             crop_id=crop.id,
+            pest_id=crop.hasAgriPest["object"],
             location=(get_weather_location(parcel)),  # (42.1620, 3.0924),
             dates=("2022-01-01", "2022-10-01"),
         )

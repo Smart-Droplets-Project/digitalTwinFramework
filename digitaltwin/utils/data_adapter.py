@@ -6,7 +6,7 @@ from geojson import (
     Feature,
     FeatureCollection,
 )
-from typing import Union, Optional
+from typing import Union, Optional, List
 
 from ..cropmodel.crop_model import get_default_variables
 from sd_data_adapter.api import upload
@@ -22,12 +22,17 @@ def create_agripest(do_upload=True):
     return model
 
 
-def create_crop(crop_type: str, do_upload=True) -> agri_food_model.AgriCrop:
+def create_crop(
+    crop_type: str,
+    pest: Optional[agri_food_model.AgriPest] = None,
+    do_upload=True,
+) -> agri_food_model.AgriCrop:
     """
     Function to create SDM crop entity
 
     :param do_upload: upload to registry
     :param crop_type: String of generic crop type
+    :param pest: AgriPest
     :return: AgriCrop entity
     """
     model = agri_food_model.AgriCrop(
@@ -40,6 +45,7 @@ def create_crop(crop_type: str, do_upload=True) -> agri_food_model.AgriCrop:
             "20221003",
             "20230820",
         ],  # List of planting and harvest date in YYYYMMDD in str
+        **({"hasAgriPest": pest.id} if pest else {}),
     )
     if do_upload:
         upload(model)
@@ -60,8 +66,10 @@ def create_agrisoil(do_upload=True):
     return model
 
 
-def create_device(crop: agri_food_model.agriCrop, variable: str, do_upload=True):
-    model = device_model.Device(controlledProperty=variable, controlledAsset=crop.id)
+def create_device(controlled_asset: str, variable: str, do_upload=True):
+    model = device_model.Device(
+        controlledProperty=variable, controlledAsset=controlled_asset
+    )
     if do_upload:
         upload(model)
     return model
@@ -118,6 +126,7 @@ def create_parcel(
     area_parcel: float,
     crop: agri_food_model.AgriCrop,
     soil: Optional[agri_food_model.AgriSoil] = None,
+    pest: Optional[agri_food_model.AgriPest] = None,
     do_upload=True,
     name: str = "Wheat Parcel 1",
     address: str = "Farming Street 1",
@@ -134,6 +143,7 @@ def create_parcel(
     :param area_parcel: A float of parcel area in hectares (ha)
     :param crop: A SmartDataModel crop entity
     :param soil: A SmartDataModel soil entity
+    :param pest: A SmartDataModel pest entity
     :param do_upload: Bool to upload entity to Data Management Platform
     :param name: Name of the parcel
     :param address: address of the parcel
@@ -219,11 +229,12 @@ def fill_database(variables: list[str] = get_default_variables()):
         parcel=parcel, product=fertilizer
     )
     for variable in variables:
-        device = create_device(crop=wheat_crop, variable=variable)
+        device = create_device(controlled_asset=wheat_crop.id, variable=variable)
 
 
 def fill_database_ascab():
-    apple_crop = create_crop("apple")
+    apple_pest = create_agripest()
+    apple_crop = create_crop(crop_type="apple", pest=apple_pest)
     geo_feature_collection = generate_feature_collections(
         point=Point((42.16, 3.09)),  # for weather data (latitude, longitude)
         multilinestring=(MultiLineString()),  # for rows
@@ -244,13 +255,18 @@ def fill_database_ascab():
         location=geo_feature_collection,
         area_parcel=20,
         crop=apple_crop,
+        name="Apple Orchard",
+        address="Carrer Major, 1, 17143 Jafre, Girona, Spain",
         desciption="Serrater",
     )
+    variables = ["LeafWetness"]
+    for variable in variables:
+        device = create_device(controlled_asset=apple_crop.id, variable=variable)
 
 
 def generate_rec_message_id(day: str, parcel_id: str):
     return f"urn:ngsi-ld:CommandMessage:rec-{day}-'{parcel_id}'"
 
 
-def get_recommendation_message(recommendation: float, day: str, parcel_id: str):
-    return f"rec-fertilize:{recommendation}:day:{day}:parcel_id:{parcel_id}"
+def get_recommendation_message(type: str, amount: float, day: str, parcel_id: str):
+    return f"rec-{type}:{amount}:day:{day}:parcel_id:{parcel_id}"
