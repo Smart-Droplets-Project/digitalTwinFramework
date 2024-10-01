@@ -135,11 +135,13 @@ def create_parcel(
     :return: AgriParcel SmartDataModel entity
     """
     model = agri_food_model.AgriParcel(
+        name="Wheat Parcel 1",
+        address="Farming Street 1",
         location=location,
         area=area_parcel,
         hasAgriCrop=crop.id,
         hasAgriSoil=soil.id,
-        description="initial_site",  # TODO placeholder description
+        description="Lithuania",  # TODO placeholder description
     )
     if do_upload:
         upload(model)
@@ -190,7 +192,18 @@ def fill_database(variables: list[str] = get_default_variables()):
     geo_feature_collection = generate_feature_collections(
         point=Point((52.0, 5.5)),  # for weather data (latitude, longitude)
         multilinestring=(MultiLineString()),  # for rows
-        polygon=Polygon(),  # for parcel area
+        polygon=Polygon(
+            [
+                [
+                    (23.9100961, 55.126702),
+                    (23.9081435, 55.1224445),
+                    (23.914731, 55.1215733),
+                    (23.9158039, 55.1243586),
+                    (23.9135079, 55.1248494),
+                    (23.9100961, 55.126702),
+                ]
+            ]
+        ),
     )
     parcel = create_parcel(
         location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil

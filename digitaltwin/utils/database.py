@@ -5,7 +5,7 @@ from sd_data_adapter.models import AgriFood, Devices, AutonomousMobileRobot
 from sd_data_adapter.api import search, get_by_id
 
 
-def get_demo_parcels(description: str = "initial_site"):
+def get_demo_parcels(description: str = "Lithuania"):
     return {"type": "AgriParcel", "q": f'description=="{description}"'}
 
 
