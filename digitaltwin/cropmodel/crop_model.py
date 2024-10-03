@@ -24,6 +24,7 @@ class CropModel(pcse.engine.Engine):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._flag_terminated = False
+        self.action_counter = 0
 
     def _run(self, action):
         """Make one time step of the simulation."""
@@ -52,6 +53,7 @@ class CropModel(pcse.engine.Engine):
                 f_NO3N=0.5,
                 initial_age=0,
             )
+            self.action_counter += 1
         # Rate calculation
         self.calc_rates(self.day, self.drv)
 
@@ -79,6 +81,7 @@ class CropModel(pcse.engine.Engine):
     def _terminate_simulation(self, day):
         super()._terminate_simulation(day)
         self._flag_terminated = True
+        self.action_counter = 0
 
 
 def get_agro_config(
