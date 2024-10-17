@@ -8,5 +8,10 @@ spec:
     image: digitaltwin
     imagePullPolicy: Never
     command: ["sleep", "infinity"]  # Keeps the container alive
+    env:
+    - name: POD_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.podIP  # Gets the pod's IP and injects it as an env variable
   restartPolicy: Always
 
