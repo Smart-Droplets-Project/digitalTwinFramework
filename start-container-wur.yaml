@@ -9,11 +9,11 @@ spec:
     command: ["sleep", "infinity"]  # Keeps the container alive
     resources:
       requests:
-        cpu: 200m
-        memory: 500M
+        cpu: 100m
+        memory: 64M
       limits:
         cpu: 200m
-        memory: 500M    
+        memory: 512M
     env:
     - name: POD_IP
       valueFrom:

@@ -40,8 +40,26 @@ spec:
               protocol: TCP
           resources:
             limits:
-              cpu: 100m
+              cpu: 400m
               memory: 256Mi
             requests:
               cpu: 100m
-              memory: 256Mi
+              memory: 64Mi
+          livenessProbe:
+            exec:
+              command:
+                - bash
+                - -ec
+                - |
+                  mongo --eval 'db.runCommand("ping").ok' 127.0.0.1:27017/test && echo 0 || echo 1
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command:
+                - bash
+                - -ec
+                - |
+                  mongo --eval 'db.runCommand("ping").ok' 127.0.0.1:27017/test && echo 0 || echo 1
+            initialDelaySeconds: 5
+            periodSeconds: 5
