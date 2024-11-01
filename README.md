@@ -17,7 +17,8 @@ The digitalTwinFramework is installed in a Kubernetes cluster. Instructions for 
 
 ## Usage
 
-Demo scripts are provided to illustrate the framework’s core functionalities:
+Demo scripts are provided to illustrate the framework’s core functionalities. Instructions on how to run these scripts are provided in [INSTALL.md](INSTALL.md), which calls [demo.sh](demo.sh). Dependency management and script execution are managed through [Poetry](https://python-poetry.org/).
+
 * [demo.py](digitaltwin/demo.py): Initializes a parcel with a crop and simulates a growing season in daily timesteps, generating fertilization recommendations. Simulation results as well as fertilizer recommendations (command messages) are stored in the data management platform through the context broker.
 * [demo-ascab.py](digitaltwin/demo-ascab.py): Initializes a parcel with apple trees that may be infected with apple scab. It runs simulations of potential infections and provides spraying suggestions (command messages), storing outcomes in the data management platform.
 * [demo-receive-notification.py](digitaltwin/demo-receive-notification.py): Demonstrates how an [upload of a measurement](digitaltwin/demo-upload-measurement.py) triggers a simulation run. This is enabled by FastAPI, which is subscribed to notifications from the context broker.
