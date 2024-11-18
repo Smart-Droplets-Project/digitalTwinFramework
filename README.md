@@ -25,7 +25,12 @@ Demo scripts are provided to illustrate the framework’s core functionalities. 
 
 
 ## Use Case
-The Digital Twins are part of the Smart Droplets Digital Platform. The use case of the Framework is shown in the UML figure below.
+The Digital Twins are part of the Smart Droplets Digital Platform. The use case of the Framework is shown in the UML figure below:
 ![Digital Twin UML](assets/DigitalTwinUseCase.png)
+
+The Digital Twins automatically simulates a new day based on the [Cron Job](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) defined.
+A user may also invoke a simulation for the whole growing season.
+We explain the inter-component interaction with a sequence diagram below:
+![Digital Twin Seq](assets/DigitalTwinSequenceDiagram.png)
 
 
