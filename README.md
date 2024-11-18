@@ -24,3 +24,8 @@ Demo scripts are provided to illustrate the framework’s core functionalities. 
 * [demo-receive-notification.py](digitaltwin/demo-receive-notification.py): Demonstrates how an [upload of a measurement](digitaltwin/demo-upload-measurement.py) triggers a simulation run. This is enabled by FastAPI, which is subscribed to notifications from the context broker.
 
 
+## Use Case
+The Digital Twins are part of the Smart Droplets Digital Platform. The use case of the Framework is shown in the UML figure below.
+![Digital Twin UML](assets/DigitalTwinUseCase.png)
+
+
