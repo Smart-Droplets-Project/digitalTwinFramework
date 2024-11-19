@@ -9,7 +9,7 @@ from geojson import (
 from typing import Union, Optional, List
 
 from ..cropmodel.crop_model import get_default_variables
-from sd_data_adapter.api import upload
+from sd_data_adapter.api import upload, upsert
 import sd_data_adapter.models.agri_food as agri_food_model
 import sd_data_adapter.models.device as device_model
 import sd_data_adapter.models.autonomous_mobile_robot as autonomous_mobile_robot

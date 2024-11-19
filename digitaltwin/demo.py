@@ -1,13 +1,13 @@
 import argparse
 
 from sd_data_adapter.client import DAClient
-from sd_data_adapter.api import search
+from sd_data_adapter.api import search, upsert
 from sd_data_adapter.models import AgriFood
+import sd_data_adapter.models.device as device_model
 
 from digitaltwin.cropmodel.crop_model import create_digital_twins, get_default_variables
 from digitaltwin.cropmodel.recommendation import standard_practice
 from digitaltwin.utils.data_adapter import (
-    create_device_measurement,
     create_command_message,
     fill_database,
     get_row_coordinates,
@@ -20,6 +20,7 @@ from digitaltwin.utils.database import (
     has_demodata,
     find_parcel_operations,
     find_device,
+    find_device_measurement,
     find_command_messages,
     clear_database,
     get_parcel_operation_by_date,
@@ -52,7 +53,7 @@ def main():
     for digital_twin in digital_twins:
         parcel_operations = find_parcel_operations(digital_twin._locatedAtParcel)
         devices = find_device(digital_twin._isAgriCrop)
-        device_dict = {device.controlledProperty: device for device in devices}
+        device_dict = {device.controlledProperty: (device, device_model.DeviceMeasurement(refDevice=device.id, controlledProperty=device.controlledProperty)) for device in devices}
 
         # run crop model
         while digital_twin.flag_terminate is False:
@@ -62,16 +63,13 @@ def main():
             action = parcel_operation.quantity if parcel_operation else 0
             digital_twin.run(1, action)
 
-            for variable, device in device_dict.items():
+            for variable, (device, device_measurement) in device_dict.items():
                 if digital_twin.get_output()[-1][variable] is not None:
-                    create_device_measurement(
-                        device=device,
-                        date_observed=digital_twin.day.isoformat() + "T00:00:00Z",
-                        value=digital_twin.get_output()[-1][variable],
-                    )
+                    device_measurement.numValue = digital_twin.get_output()[-1][variable]
+                    device_measurement.dateObserved = digital_twin.day.isoformat() + "T00:00:00Z"
+                    upsert(device_measurement)
 
             # get AI recommendation
-
             recommendation = standard_practice(digital_twin.get_output()[-1])
 
             # create command message
@@ -96,8 +94,10 @@ def main():
                 )
 
         print(digital_twin.get_summary_output())
-        print("The following commands were stored\n")
+        print("The following commands were stored:\n")
         print(find_command_messages())
+        print("The following DeviceMeasurements were stored:\n")
+        print(find_device_measurement(digital_twin._isAgriCrop))
 
 
 if __name__ == "__main__":

@@ -28,6 +28,13 @@ def find_device(crop_id: str):
     )
 
 
+def find_device_measurement(crop_id: str):
+    return search(
+        {"type": "DeviceMeasurement"},
+        ctx=Devices.ctx,
+    )
+
+
 def find_command_messages():
     return search(
         {"type": "CommandMessage"},
