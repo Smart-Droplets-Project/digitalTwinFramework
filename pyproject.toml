@@ -20,6 +20,8 @@ sd-data-adapter = {path = "smartDropletsDataAdapters", develop = true}
 ascab = {git = "https://github.com/BigDataWUR/A-scab.git"}
 fastapi = "^0.115.2"
 uvicorn = "^0.31.1"
+matplotlib = "^3.9.2"
+datetime = "^5.5"
 
 [build-system]
 requires = ["poetry-core"]

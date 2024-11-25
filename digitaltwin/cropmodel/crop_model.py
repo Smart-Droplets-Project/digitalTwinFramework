@@ -143,7 +143,18 @@ def get_site_parameters(site: agri_food_model.agriParcel):
 
 def get_default_variables():
     # TODO: make sure that the following aligns with OUTPUT_VARS in Wofost81_NWLP_MLWB_SNOMIN.conf
-    return ["DVS", "LAI", "TAGP", "TWSO"]
+    return ["DVS", "LAI", "TAGP", "TWSO", "NAVAIL", "NuptakeTotal"]
+
+
+def get_titles():
+    result = {"DVS":("Development stage", "-"),
+              "TAGP": ("Total aboveground biomass", "kg/ha"),
+              "LAI": ("Leaf area Index", "-"),
+              "NuptakeTotal": ("Total nitrogen uptake", "kgN/ha"),
+              "NAVAIL": ("Total soil inorganic nitrogen", "kgN/ha"),
+              "TWSO": ("Weight storage organs", "kg/ha")
+              }
+    return result
 
 
 def create_digital_twins(

@@ -9,7 +9,7 @@ from geojson import (
 from typing import Union, Optional, List
 
 from ..cropmodel.crop_model import get_default_variables
-from sd_data_adapter.api import upload, upsert
+from sd_data_adapter.api import upload
 import sd_data_adapter.models.agri_food as agri_food_model
 import sd_data_adapter.models.device as device_model
 import sd_data_adapter.models.autonomous_mobile_robot as autonomous_mobile_robot
@@ -106,7 +106,7 @@ def create_fertilizer_application(
     parcel: agri_food_model.AgriParcel,
     product: agri_food_model.AgriProductType,
     quantity=60,
-    date: str = "20230401",
+    date: str = "20230310",
     do_upload=True,
 ) -> agri_food_model.AgriParcelOperation:
     model = agri_food_model.AgriParcelOperation(
@@ -128,8 +128,8 @@ def create_parcel(
     soil: Optional[agri_food_model.AgriSoil] = None,
     pest: Optional[agri_food_model.AgriPest] = None,
     do_upload=True,
-    name: str = "Wheat Parcel 1",
-    address: str = "Farming Street 1",
+    name: str = "Wheat Parcel Lithuania",
+    address: str = "Uzumiskės, Kaunas, Lithuania",
     desciption: str = "Lithuania",
 ) -> agri_food_model.AgriParcel:
     """
@@ -223,10 +223,6 @@ def fill_database(variables: list[str] = get_default_variables()):
     )
     parcel = create_parcel(
         location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil
-    )
-    fertilizer = create_fertilizer()
-    fertilizer_application = create_fertilizer_application(
-        parcel=parcel, product=fertilizer
     )
     for variable in variables:
         device = create_device(controlled_asset=wheat_crop.id, variable=variable)

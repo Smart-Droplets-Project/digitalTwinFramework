@@ -1,4 +1,7 @@
 import argparse
+
+from digitaltwin.utils.simulator import run_cropmodel
+
 from fastapi import FastAPI, Request
 from ngsildclient import SubscriptionBuilder
 from sd_data_adapter.client import DAClient
@@ -22,6 +25,7 @@ async def receive_notification(request: Request, debug=False):
         notification = await request.json()
         print("Received notification:")
         print(notification)
+        run_cropmodel(debug=False)
         return {"status": "received"}
     except Exception as e:
         print(f"Error processing request: {e}")
@@ -32,9 +36,9 @@ def subscribe_to_ocb(host):
     MY_SERVER_URL = f'http://{host}:8000/notification'
 
     subscr = SubscriptionBuilder(MY_SERVER_URL)\
-        .context('https://raw.githubusercontent.com/smart-data-models/dataModel.Device/master/context.jsonld')\
-        .description("Notification for new Device Measurements.")\
-        .select_type("DeviceMeasurement")\
+        .context('https://raw.githubusercontent.com/smart-data-models/dataModel.AgriFood/master/context.jsonld')\
+        .description("Notification for new AgriParcelOperations.")\
+        .select_type("AgriParcelOperation")\
         .build()
 
     try:
