@@ -6,9 +6,9 @@ from digitaltwin.cropmodel.crop_model import create_digital_twins
 from digitaltwin.cropmodel.recommendation import fill_it_up
 from digitaltwin.utils.data_adapter import (
     create_command_message,
-    get_row_coordinates,
     generate_rec_message_id,
     get_recommendation_message,
+    create_geojson_from_feature_collection
 )
 from digitaltwin.utils.database import (
     get_by_id,
@@ -44,7 +44,7 @@ def run_cropmodel(debug=False):
             )
             action = parcel_operation.quantity if parcel_operation else 0
             action = action + recommendation
-            print(digital_twin.get_output()[-1]["day"])
+            if debug: print(digital_twin.get_output()[-1]["day"])
             digital_twin.run(1, action)
             for variable, (device, device_measurement) in device_dict.items():
                 if digital_twin.get_output()[-1][variable] is not None:
@@ -73,12 +73,14 @@ def run_cropmodel(debug=False):
                     message_id=command_message_id,
                     command=recommendation_message,
                     command_time=digital_twin.day.isoformat(),
-                    waypoints=get_row_coordinates(parcel.location),
+                    waypoints=create_geojson_from_feature_collection(parcel.location, target_rate_value=recommendation)
+
                 )
 
         print(digital_twin.get_summary_output())
         print("The following commands were stored:\n")
         print(find_command_messages())
+
         print("The following DeviceMeasurements were stored:\n")
         print(find_device_measurement(digital_twin._isAgriCrop))
 

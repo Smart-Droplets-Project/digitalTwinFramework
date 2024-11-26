@@ -266,3 +266,16 @@ def generate_rec_message_id(day: str, parcel_id: str):
 
 def get_recommendation_message(type: str, amount: float, day: str, parcel_id: str):
     return f"rec-{type}:{amount}:day:{day}:parcel_id:{parcel_id}"
+
+
+def create_geojson_from_feature_collection(parcel_loc: Union[FeatureCollection, agri_food_model.AgriParcel.location], target_rate_value=0.5):
+    features = []
+    for feature in parcel_loc['features']:
+        if feature["geometry"]["type"] == "Polygon":
+            # Modify the properties of the feature
+            feature['properties']['Target Rate'] = target_rate_value
+            features.append(feature)
+
+    feature_collection = FeatureCollection(features, name="output")
+    return feature_collection
+
