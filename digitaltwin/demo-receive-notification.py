@@ -1,6 +1,9 @@
 import argparse
 
 from digitaltwin.utils.simulator import run_cropmodel
+from digitaltwin.utils.data_adapter import fill_database
+from digitaltwin.utils.database import has_demodata, clear_database
+from digitaltwin.cropmodel.crop_model import get_default_variables
 
 from fastapi import FastAPI, Request
 from ngsildclient import SubscriptionBuilder
@@ -33,7 +36,7 @@ async def receive_notification(request: Request, debug=False):
 
 
 def subscribe_to_ocb(host):
-    MY_SERVER_URL = f'http://{host}:8000/notification'
+    MY_SERVER_URL = f'https://{host}/notification'
 
     subscr = SubscriptionBuilder(MY_SERVER_URL)\
         .context('https://raw.githubusercontent.com/smart-data-models/dataModel.AgriFood/master/context.jsonld')\
@@ -49,8 +52,17 @@ def subscribe_to_ocb(host):
 
 
 if __name__ == "__main__":
+
+    # Seed initial data
+    clear_database()
+
+    # fill database with demo data
+    if not has_demodata():
+        fill_database(variables=get_default_variables())
+
+    # Set up subscription
     subscribe_to_ocb(args.webserverhost)
 
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="localhost", port=8000)
 

@@ -205,6 +205,7 @@ def get_row_coordinates(
 def fill_database(variables: list[str] = get_default_variables()):
     wheat_crop = create_crop("wheat")
     soil = create_agrisoil()
+    create_fertilizer()
     geo_feature_collection = generate_feature_collections(
         point=Point((52.0, 5.5)),  # for weather data (latitude, longitude)
         multilinestring=(MultiLineString()),  # for rows
