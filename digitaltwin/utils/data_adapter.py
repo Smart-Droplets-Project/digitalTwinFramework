@@ -191,12 +191,12 @@ def generate_feature_collections(
     return FeatureCollection([point_feature, multilinestring_feature, polygon_feature])
 
 
-def get_row_coordinates(
-    parcel_loc: Union[FeatureCollection, agri_food_model.AgriParcel.location],
+def get_coordinates(
+    parcel_loc: Union[FeatureCollection, agri_food_model.AgriParcel.location], feature_type: str = "MultiLineString",
 ):
     multi_line_string_coords = []
     for feature in parcel_loc["features"]:
-        if feature["geometry"]["type"] == "MultiLineString":
+        if feature["geometry"]["type"] == feature_type:
             coords = feature["geometry"]["coordinates"]
             multi_line_string_coords.append(coords)
     return multi_line_string_coords

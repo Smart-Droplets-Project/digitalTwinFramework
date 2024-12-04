@@ -18,7 +18,6 @@ class AgriParcelOperation {
     + operationType: String
 }
 class Device {
-    + deviceId: String
     + type: String
     + controlledProperty: String
 }
@@ -56,9 +55,15 @@ AgriParcel  --> AgriCrop : hasAgriCrop
 AgriParcel --> AgriSoil : hasAgriSoil
 AgriCrop --> AgriSoil : hasAgriSoil
 AgriCrop --> AgriPest : hasAgriPest
-Device --> DeviceMeasurement: refDevice
+DeviceMeasurement  --> Device: refDevice
 Device --> AgriPest: ControlledAsset
 AgriParcelOperation --> AgriParcel : hasAgriParcel
 AgriParcelOperation --> AgriProductType : hasAgriProductType
 Device  --> AgriCrop : ControlledAsset
+/'
+class DigitalTwin{
+}
+DigitalTwin --> AgriParcel: locatedAtParcel
+DigitalTwin --> AgriCrop: isAgriCrop
+'/
 @enduml
