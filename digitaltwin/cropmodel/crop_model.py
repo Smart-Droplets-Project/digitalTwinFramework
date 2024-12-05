@@ -1,6 +1,9 @@
 import datetime
 import os
 import yaml
+import pandas as pd
+import numpy as np
+import nlopt
 from typing import Optional, List
 import pcse
 from pcse.engine import Engine
@@ -22,6 +25,7 @@ class CropModel(pcse.engine.Engine):
         self._flag_terminated = False
         self._locatedAtParcel: Optional[Relationship] = parcel_id
         self._isAgriCrop: Optional[Relationship] = crop_id
+        self._agromanagement = kwargs["agromanagement"]
 
     def _run(self, action):
         """Make one time step of the simulation."""
@@ -147,13 +151,14 @@ def get_default_variables():
 
 
 def get_titles():
-    result = {"DVS":("Development stage", "-"),
-              "TAGP": ("Total aboveground biomass", "kg/ha"),
-              "LAI": ("Leaf area Index", "-"),
-              "NuptakeTotal": ("Total nitrogen uptake", "kgN/ha"),
-              "NAVAIL": ("Total soil inorganic nitrogen", "kgN/ha"),
-              "TWSO": ("Weight storage organs", "kg/ha")
-              }
+    result = {
+        "DVS": ("Development stage", "-"),
+        "TAGP": ("Total aboveground biomass", "kg/ha"),
+        "LAI": ("Leaf area Index", "-"),
+        "NuptakeTotal": ("Total nitrogen uptake", "kgN/ha"),
+        "NAVAIL": ("Total soil inorganic nitrogen", "kgN/ha"),
+        "TWSO": ("Weight storage organs", "kg/ha"),
+    }
     return result
 
 
@@ -185,6 +190,7 @@ def create_digital_twins(
         parameter_provider = ParameterProvider(
             cropdata=crop_parameters, sitedata=site_parameters, soildata=soil_parameters
         )
+
         crop_growth_model = CropModel(
             parameterprovider=parameter_provider,
             weatherdataprovider=weatherdataprovider,
@@ -193,6 +199,155 @@ def create_digital_twins(
             parcel_id=parcel.id,
             crop_id=crop.id,
         )
+        config_date = list(agro_config[0].keys())[0]
+        crop_name = agro_config[0][config_date]["CropCalendar"]["crop_name"]
+        variety_name = agro_config[0][config_date]["CropCalendar"]["variety_name"]
+        parameter_provider.set_active_crop(crop_name, variety_name)
         results.append(crop_growth_model)
 
     return results
+
+
+class ModelRerunner(object):
+    """Reruns a given model with different values of parameters
+
+    Returns a pandas DataFrame with simulation results of the model with given
+    parameter values.
+    """
+
+    def __init__(self, params, wdp, agro, model_config, parameters_calibration):
+        self.params = params
+        self.wdp = wdp
+        self.agro = agro
+        self.model_config = model_config
+        self.parameters_calibration = parameters_calibration
+
+    def __call__(self, par_values):
+        # Check if correct number of parameter values were provided
+        if len(par_values) != len(self.parameters_calibration):
+            msg = "Optimizing %i parameters, but only % values were provided!" % (
+                len(self.parameters_calibration, len(par_values))
+            )
+            raise RuntimeError(msg)
+        # Clear any existing overrides
+        self.params.clear_override()
+        update_loc = False
+        # Set overrides for the new parameter values
+        for parname, value in zip(self.parameters_calibration, par_values):
+            if parname in self.params._unique_parameters:
+                self.params.set_override(parname, value)
+
+        # Run the model with given parameter values
+        # print(self.params._maps)
+        model_mod = pcse.engine.Engine(
+            self.params, self.wdp, self.agro, config=self.model_config
+        )
+        model_mod.run_till_terminate()
+        df = pd.DataFrame(model_mod.get_output())
+        df.index = pd.to_datetime(df.day)
+        return df
+
+
+class ObjectiveFunctionCalculator(object):
+    """Computes the objective function.
+
+        This class runs the simulation model with given parameter values and returns the objective
+        function as the sum of squared difference between observed and simulated.
+    ."""
+
+    def __init__(
+        self, params, wdp, agro, model_config, parameters_calibration, observations
+    ):
+        self.modelrerunner = ModelRerunner(
+            params, wdp, agro, model_config, parameters_calibration
+        )
+        self.df_observations = observations
+        self.n_calls = 0
+
+    def __call__(self, par_values, grad=None):
+        """Runs the model and computes the objective function for given par_values.
+
+        The input parameter 'grad' must be defined in the function call, but is only
+        required for optimization methods where analytical gradients can be computed.
+        """
+        self.n_calls += 1
+        # print(".", end="")
+        # Run the model and collect output
+        self.df_simulations = self.modelrerunner(par_values)
+        # compute the differences by subtracting the DataFrames
+        # Note that the dataframes automatically join on the index (dates) and column names
+        df_differences = self.df_simulations - self.df_observations
+        # display(df_differences[df_differences.DVS.notnull()].DVS)
+        # Compute the RMSE on the DVS column
+        obj_func = np.sqrt(np.mean(df_differences.DVS**2))
+        # print(f'{par_values} {obj_func}')
+        return obj_func
+
+
+def optimize(objfunc_calc, p_mod, lower, upper, steps):
+    # Calibration with optimizer
+    opt = nlopt.opt(nlopt.LN_SBPLX, len(p_mod))
+    opt.set_min_objective(objfunc_calc)
+    opt.set_lower_bounds(lower)
+    opt.set_upper_bounds(upper)
+    opt.set_initial_step(steps)
+    opt.set_maxeval(200)
+    opt.set_ftol_rel(0.1)
+
+    x = opt.optimize(list(p_mod.values()))
+    np.set_printoptions(precision=2, suppress=True)
+    print(f"\noptimum at {x}")
+    print("minimum value = ", opt.last_optimum_value())
+    print("result code = ", opt.last_optimize_result())
+    print("With %i function calls" % objfunc_calc.n_calls)
+    return x
+
+
+def calibrate(cropmodel: CropModel):
+    # DVS variables and sowing
+    parameter_provider = cropmodel.parameterprovider
+    weather_data_provider = cropmodel.weatherdataprovider
+    agro_management = cropmodel._agromanagement
+    model_config = cropmodel.mconf.model_config_file
+    parameters_mod = {
+        x: parameter_provider._cropdata[x]
+        for x in ["TSUM1", "TSUM2", "DLC", "DLO", "TSUMEM"]
+    }
+    lower_bounds = [i * 0.2 for i in parameters_mod.values()]
+    upper_bounds = [i * 1.2 for i in parameters_mod.values()]
+    initial_steps = [i * 0.1 for i in parameters_mod.values()]
+
+    # DVS as published on MARS website
+    MARS = [
+        [datetime.date(2022, 12, 31), 0.03],
+        [datetime.date(2023, 1, 1), 0.03],
+        [datetime.date(2023, 2, 1), 0.04],
+        [datetime.date(2023, 3, 1), 0.08],
+        [datetime.date(2023, 3, 15), 0.15],
+        [datetime.date(2023, 4, 1), 0.28],
+        [datetime.date(2023, 4, 10), 0.38],
+        [datetime.date(2023, 5, 1), 0.62],
+        [datetime.date(2023, 5, 20), 1.0],
+        [datetime.date(2023, 6, 1), 1.24],
+        [datetime.date(2023, 6, 15), 1.6],
+        [datetime.date(2023, 6, 20), 1.7],
+        [datetime.date(2023, 7, 1), 1.93],
+        [datetime.date(2023, 7, 10), 2.0],
+    ]
+    Results_MARS = pd.DataFrame(MARS, columns=["day", "DVS"])
+    Results_MARS = Results_MARS.set_index("day")
+
+    objfunc_calculator = ObjectiveFunctionCalculator(
+        parameter_provider,
+        weather_data_provider,
+        agro_management,
+        model_config,
+        list(parameters_mod.keys()),
+        Results_MARS,
+    )
+    print(parameters_mod)
+    x = optimize(
+        objfunc_calculator, parameters_mod, lower_bounds, upper_bounds, initial_steps
+    )
+    objfunc_calculator(x)
+    results_opt_all = objfunc_calculator.df_simulations

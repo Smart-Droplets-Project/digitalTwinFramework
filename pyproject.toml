@@ -22,6 +22,7 @@ fastapi = "^0.115.2"
 uvicorn = "^0.31.1"
 matplotlib = "^3.9.2"
 datetime = "^5.5"
+nlopt = "2.7.1"
 
 [build-system]
 requires = ["poetry-core"]

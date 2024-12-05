@@ -8,7 +8,7 @@ from digitaltwin.utils.data_adapter import (
     create_command_message,
     generate_rec_message_id,
     get_recommendation_message,
-    create_geojson_from_feature_collection
+    create_geojson_from_feature_collection,
 )
 from digitaltwin.utils.database import (
     get_by_id,
@@ -89,18 +89,28 @@ def run_cropmodel(debug=False):
             model_output = model_output.set_index("day")
 
             plot_variables = get_default_variables()
-            fig, axes = plt.subplots(len(plot_variables), 1, sharex=True, figsize=(12,10))
+            fig, axes = plt.subplots(
+                len(plot_variables), 1, sharex=True, figsize=(12, 10)
+            )
             titles = get_titles()
 
             for i, var in enumerate(plot_variables):
                 ax = axes if len(plot_variables) == 1 else axes[i]
-                ax.plot_date(model_output.index, model_output[var], 'r-', label='AI agent')
+                ax.plot_date(
+                    model_output.index, model_output[var], "r-", label="AI agent"
+                )
                 name, unit = titles[var]
                 title = f"{var} - {name}"
                 ax.set_ylabel(f"[{unit}]")
                 ax.set_title(title, fontsize="8.5")
-                if i==0: ax.legend(fontsize="6.5")
+                if i == 0:
+                    ax.legend(fontsize="6.5")
                 ax.grid()
-                ax.set_xlim([model_output.index[5], model_output.index[-1]+ datetime.timedelta(days=7)])
+                ax.set_xlim(
+                    [
+                        model_output.index[5],
+                        model_output.index[-1] + datetime.timedelta(days=7),
+                    ]
+                )
             fig.autofmt_xdate()
             plt.show()
