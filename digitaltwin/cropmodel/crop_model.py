@@ -222,8 +222,7 @@ class ModelRerunner(object):
         self.model_config = model_config
         self.parameters_calibration = parameters_calibration
 
-    def __call__(self, par_values):
-        # Check if correct number of parameter values were provided
+    def update_cropcropmodel(self, par_values):
         if len(par_values) != len(self.parameters_calibration):
             msg = "Optimizing %i parameters, but only % values were provided!" % (
                 len(self.parameters_calibration, len(par_values))
@@ -231,17 +230,20 @@ class ModelRerunner(object):
             raise RuntimeError(msg)
         # Clear any existing overrides
         self.params.clear_override()
-        update_loc = False
         # Set overrides for the new parameter values
         for parname, value in zip(self.parameters_calibration, par_values):
             if parname in self.params._unique_parameters:
                 self.params.set_override(parname, value)
 
         # Run the model with given parameter values
-        # print(self.params._maps)
         model_mod = pcse.engine.Engine(
             self.params, self.wdp, self.agro, config=self.model_config
         )
+        return model_mod
+
+    def __call__(self, par_values):
+        # Check if correct number of parameter values were provided
+        model_mod = self.update_cropcropmodel(par_values)
         model_mod.run_till_terminate()
         df = pd.DataFrame(model_mod.get_output())
         df.index = pd.to_datetime(df.day)
@@ -303,19 +305,7 @@ def optimize(objfunc_calc, p_mod, lower, upper, steps):
     return x
 
 
-def calibrate(cropmodel: CropModel):
-    # DVS variables and sowing
-    parameter_provider = cropmodel.parameterprovider
-    weather_data_provider = cropmodel.weatherdataprovider
-    agro_management = cropmodel._agromanagement
-    model_config = cropmodel.mconf.model_config_file
-    parameters_mod = {
-        x: parameter_provider._cropdata[x]
-        for x in ["TSUM1", "TSUM2", "DLC", "DLO", "TSUMEM"]
-    }
-    lower_bounds = [i * 0.2 for i in parameters_mod.values()]
-    upper_bounds = [i * 1.2 for i in parameters_mod.values()]
-    initial_steps = [i * 0.1 for i in parameters_mod.values()]
+def get_dummy_measurements() -> pd.DataFrame:
 
     # DVS as published on MARS website
     MARS = [
@@ -336,6 +326,34 @@ def calibrate(cropmodel: CropModel):
     ]
     Results_MARS = pd.DataFrame(MARS, columns=["day", "DVS"])
     Results_MARS = Results_MARS.set_index("day")
+    return Results_MARS
+
+
+def get_default_calibration_parameters():
+    return ["TSUM1", "TSUM2", "DLC", "DLO", "TSUMEM"]
+
+
+def get_original_parameter(maps, key):
+    for data_map in maps[1:]:  # Skip the first dictionary
+        if key in data_map:
+            return data_map[key]
+    raise KeyError(key)
+
+
+def calibrate(
+    cropmodel: CropModel,
+    measurements: pd.DataFrame = get_dummy_measurements(),
+    parameters=get_default_calibration_parameters(),
+):
+    # DVS variables and sowing
+    parameter_provider = cropmodel.parameterprovider
+    weather_data_provider = cropmodel.weatherdataprovider
+    agro_management = cropmodel._agromanagement
+    model_config = cropmodel.mconf.model_config_file
+    parameters_mod = {x: parameter_provider._cropdata[x] for x in parameters}
+    lower_bounds = [i * 0.2 for i in parameters_mod.values()]
+    upper_bounds = [i * 1.2 for i in parameters_mod.values()]
+    initial_steps = [i * 0.1 for i in parameters_mod.values()]
 
     objfunc_calculator = ObjectiveFunctionCalculator(
         parameter_provider,
@@ -343,11 +361,15 @@ def calibrate(cropmodel: CropModel):
         agro_management,
         model_config,
         list(parameters_mod.keys()),
-        Results_MARS,
+        measurements,
     )
-    print(parameters_mod)
     x = optimize(
         objfunc_calculator, parameters_mod, lower_bounds, upper_bounds, initial_steps
     )
-    objfunc_calculator(x)
-    results_opt_all = objfunc_calculator.df_simulations
+    cropmodel.parameterprovider.clear_override()
+    # Set overrides for the new parameter values
+    for parname, value in zip(list(parameters_mod.keys()), x):
+        if parname in cropmodel.parameterprovider._unique_parameters:
+            cropmodel.parameterprovider.set_override(parname, value)
+    updated_cropmodel = objfunc_calculator.modelrerunner.update_cropcropmodel(x)
+    return updated_cropmodel

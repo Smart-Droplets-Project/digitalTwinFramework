@@ -2,7 +2,10 @@ from sd_data_adapter.api import search, upsert
 from sd_data_adapter.models import AgriFood
 import sd_data_adapter.models.device as device_model
 
-from digitaltwin.cropmodel.crop_model import create_digital_twins
+from digitaltwin.cropmodel.crop_model import (
+    create_digital_twins,
+    get_original_parameter,
+)
 from digitaltwin.cropmodel.recommendation import fill_it_up
 from digitaltwin.utils.data_adapter import (
     create_command_message,
@@ -20,7 +23,11 @@ from digitaltwin.utils.database import (
     get_parcel_operation_by_date,
 )
 
-from digitaltwin.cropmodel.crop_model import get_default_variables, get_titles
+from digitaltwin.cropmodel.crop_model import (
+    get_default_variables,
+    get_titles,
+    calibrate,
+)
 import matplotlib.pyplot as plt
 import pandas as pd
 import datetime
@@ -33,9 +40,25 @@ def run_cropmodel(debug=False):
 
     # run digital twins
     for digital_twin in digital_twins:
+        calibrate(digital_twin)
+        if digital_twin.parameterprovider._override:
+            orig_pars = {
+                par: get_original_parameter(digital_twin.parameterprovider._maps, par)
+                for par in digital_twin.parameterprovider._override.keys()
+            }
+            print(f"before calibration: {orig_pars}")
+            print(f"after calibration: {digital_twin.parameterprovider._override}")
         parcel_operations = find_parcel_operations(digital_twin._locatedAtParcel)
         devices = find_device(digital_twin._isAgriCrop)
-        device_dict = {device.controlledProperty: (device, device_model.DeviceMeasurement(refDevice=device.id, controlledProperty=device.controlledProperty)) for device in devices}
+        device_dict = {
+            device.controlledProperty: (
+                device,
+                device_model.DeviceMeasurement(
+                    refDevice=device.id, controlledProperty=device.controlledProperty
+                ),
+            )
+            for device in devices
+        }
 
         # run crop model
         while digital_twin.flag_terminate is False:
@@ -43,13 +66,20 @@ def run_cropmodel(debug=False):
                 parcel_operations, digital_twin.day
             )
             action = parcel_operation.quantity if parcel_operation else 0
+            # if digital_twin.get_output()[-1]["day"].strftime("%Y-%m-%d") == "2023-03-10" and action == 0:
+            #    action = 60
             action = action + recommendation
-            if debug: print(digital_twin.get_output()[-1]["day"])
+            if debug:
+                print(digital_twin.get_output()[-1]["day"])
             digital_twin.run(1, action)
             for variable, (device, device_measurement) in device_dict.items():
                 if digital_twin.get_output()[-1][variable] is not None:
-                    device_measurement.numValue = digital_twin.get_output()[-1][variable]
-                    device_measurement.dateObserved = digital_twin.day.isoformat() + "T00:00:00Z"
+                    device_measurement.numValue = digital_twin.get_output()[-1][
+                        variable
+                    ]
+                    device_measurement.dateObserved = (
+                        digital_twin.day.isoformat() + "T00:00:00Z"
+                    )
                     upsert(device_measurement)
 
             # get AI recommendation
