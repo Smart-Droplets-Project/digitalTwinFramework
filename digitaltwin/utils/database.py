@@ -28,7 +28,7 @@ def find_device(crop_id: str):
     )
 
 
-def find_device_measurement(crop_id: str):
+def find_device_measurement():
     return search(
         {"type": "DeviceMeasurement"},
         ctx=Devices.ctx,

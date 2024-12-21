@@ -4,7 +4,7 @@ import sd_data_adapter.models.device as device_model
 
 from digitaltwin.cropmodel.crop_model import (
     create_digital_twins,
-    get_original_parameter,
+    get_dummy_measurements,
 )
 from digitaltwin.cropmodel.recommendation import fill_it_up
 from digitaltwin.utils.data_adapter import (
@@ -12,6 +12,7 @@ from digitaltwin.utils.data_adapter import (
     generate_rec_message_id,
     get_recommendation_message,
     create_geojson_from_feature_collection,
+    split_device_dicts,
 )
 from digitaltwin.utils.database import (
     get_by_id,
@@ -33,24 +34,17 @@ import pandas as pd
 import datetime
 
 
-def run_cropmodel(debug=False):
+def run_cropmodel(calibrate_flag=True, debug=False):
     parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
     digital_twins = create_digital_twins(parcels)
     recommendation = 0
 
     # run digital twins
     for digital_twin in digital_twins:
-        calibrate(digital_twin)
-        if digital_twin.parameterprovider._override:
-            orig_pars = {
-                par: get_original_parameter(digital_twin.parameterprovider._maps, par)
-                for par in digital_twin.parameterprovider._override.keys()
-            }
-            print(f"before calibration: {orig_pars}")
-            print(f"after calibration: {digital_twin.parameterprovider._override}")
         parcel_operations = find_parcel_operations(digital_twin._locatedAtParcel)
         devices = find_device(digital_twin._isAgriCrop)
-        device_dict = {
+
+        sim_dict = {
             device.controlledProperty: (
                 device,
                 device_model.DeviceMeasurement(
@@ -58,7 +52,26 @@ def run_cropmodel(debug=False):
                 ),
             )
             for device in devices
+            if device.controlledProperty.startswith("sim-")
         }
+
+        device_measurements = find_device_measurement()
+        dvs_measurements = [
+            measurement
+            for measurement in device_measurements
+            if measurement.controlledProperty == "obs-DVS"
+        ]
+
+        if calibrate_flag:
+
+            data = [
+                [dvs_measurement.dateObserved, dvs_measurement.numValue]
+                for dvs_measurement in dvs_measurements
+            ]
+            df_dvs = pd.DataFrame(data, columns=["day", "DVS"])
+            df_dvs["day"] = pd.to_datetime(df_dvs["day"])
+            df_dvs = df_dvs.set_index("day")
+            calibrate(digital_twin, df_dvs)
 
         # run crop model
         while digital_twin.flag_terminate is False:
@@ -72,16 +85,16 @@ def run_cropmodel(debug=False):
             if debug:
                 print(digital_twin.get_output()[-1]["day"])
             digital_twin.run(1, action)
-            for variable, (device, device_measurement) in device_dict.items():
-                if digital_twin.get_output()[-1][variable] is not None:
+            for variable, (device, device_measurement) in sim_dict.items():
+                stripped_variable = variable.split("-", 1)[1]
+                if digital_twin.get_output()[-1][stripped_variable] is not None:
                     device_measurement.numValue = digital_twin.get_output()[-1][
-                        variable
+                        stripped_variable
                     ]
                     device_measurement.dateObserved = (
                         digital_twin.day.isoformat() + "T00:00:00Z"
                     )
                     upsert(device_measurement)
-
             # get AI recommendation
             recommendation = fill_it_up(digital_twin.get_output()[-1])
 

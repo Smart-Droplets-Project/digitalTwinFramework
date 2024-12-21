@@ -293,7 +293,7 @@ def optimize(objfunc_calc, p_mod, lower, upper, steps):
     opt.set_lower_bounds(lower)
     opt.set_upper_bounds(upper)
     opt.set_initial_step(steps)
-    opt.set_maxeval(200)
+    opt.set_maxeval(20)
     opt.set_ftol_rel(0.1)
 
     x = opt.optimize(list(p_mod.values()))
@@ -333,13 +333,6 @@ def get_default_calibration_parameters():
     return ["TSUM1", "TSUM2", "DLC", "DLO", "TSUMEM"]
 
 
-def get_original_parameter(maps, key):
-    for data_map in maps[1:]:  # Skip the first dictionary
-        if key in data_map:
-            return data_map[key]
-    raise KeyError(key)
-
-
 def calibrate(
     cropmodel: CropModel,
     measurements: pd.DataFrame = get_dummy_measurements(),
@@ -354,7 +347,6 @@ def calibrate(
     lower_bounds = [i * 0.2 for i in parameters_mod.values()]
     upper_bounds = [i * 1.2 for i in parameters_mod.values()]
     initial_steps = [i * 0.1 for i in parameters_mod.values()]
-
     objfunc_calculator = ObjectiveFunctionCalculator(
         parameter_provider,
         weather_data_provider,
@@ -372,4 +364,23 @@ def calibrate(
         if parname in cropmodel.parameterprovider._unique_parameters:
             cropmodel.parameterprovider.set_override(parname, value)
     updated_cropmodel = objfunc_calculator.modelrerunner.update_cropcropmodel(x)
+    print_calibration_parameters(updated_cropmodel)
+
     return updated_cropmodel
+
+
+def get_original_parameter(maps: dict, key: str):
+    for data_map in maps[1:]:  # Skip the first dictionary
+        if key in data_map:
+            return data_map[key]
+    raise KeyError(key)
+
+
+def print_calibration_parameters(pcse_engine: pcse.engine.Engine):
+    if pcse_engine.parameterprovider._override:
+        orig_pars = {
+            par: get_original_parameter(pcse_engine.parameterprovider._maps, par)
+            for par in pcse_engine.parameterprovider._override.keys()
+        }
+        print(f"before calibration: {orig_pars}")
+        print(f"after calibration: {pcse_engine.parameterprovider._override}")
