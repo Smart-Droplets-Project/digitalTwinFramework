@@ -116,8 +116,9 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                     message_id=command_message_id,
                     command=recommendation_message,
                     command_time=digital_twin.day.isoformat(),
-                    waypoints=create_geojson_from_feature_collection(parcel.location, target_rate_value=recommendation)
-
+                    waypoints=create_geojson_from_feature_collection(
+                        parcel.location, target_rate_value=recommendation
+                    ),
                 )
 
         print(digital_twin.get_summary_output())
@@ -125,7 +126,7 @@ def run_cropmodel(calibrate_flag=True, debug=False):
         print(find_command_messages())
 
         print("The following DeviceMeasurements were stored:\n")
-        print(find_device_measurement(digital_twin._isAgriCrop))
+        print(find_device_measurement())
 
         if debug:
             model_output = pd.DataFrame(digital_twin.get_output())
@@ -142,6 +143,8 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                 ax.plot_date(
                     model_output.index, model_output[var], "r-", label="AI agent"
                 )
+                if calibrate_flag and var == "DVS":
+                    ax.plot_date(df_dvs.index, df_dvs.DVS, label="Observation")
                 name, unit = titles[var]
                 title = f"{var} - {name}"
                 ax.set_ylabel(f"[{unit}]")

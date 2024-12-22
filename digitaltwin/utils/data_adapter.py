@@ -193,7 +193,8 @@ def generate_feature_collections(
 
 
 def get_coordinates(
-    parcel_loc: Union[FeatureCollection, agri_food_model.AgriParcel.location], feature_type: str = "MultiLineString",
+    parcel_loc: Union[FeatureCollection, agri_food_model.AgriParcel.location],
+    feature_type: str = "MultiLineString",
 ):
     multi_line_string_coords = []
     for feature in parcel_loc["features"]:
