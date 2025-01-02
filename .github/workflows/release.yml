@@ -22,8 +22,6 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan github.com >> ~/.ssh/known_hosts
     - name: Clone Private Repository
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         git clone git@github.com:Smart-Droplets-Project/smartDropletsDataAdapters.git
         git clone https://github.com/WUR-AI/A-scab.git ../A-scab
