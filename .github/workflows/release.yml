@@ -15,12 +15,15 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
-    - name: Test GITHUB_TOKEN Access
+    - name: Set up SSH Key
       run: |
-        curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/orgs/Smart-Droplets-Project/repos
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan github.com >> ~/.ssh/known_hosts
     - name: Clone Private Repository
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        git clone https://x-access-token:${GITHUB_TOKEN}@github.com/Smart-Droplets-Project/smartDropletsDataAdapters.git ../smartDropletsDataAdapters
+        git clone git@github.com:Smart-Droplets-Project/smartDropletsDataAdapters.git
         git clone https://github.com/WUR-AI/A-scab.git ../A-scab
