@@ -23,7 +23,7 @@ jobs:
         ssh-keyscan github.com >> ~/.ssh/known_hosts
     - name: Clone Private Repository
       run: |
-        git clone git@github.com:Smart-Droplets-Project/smartDropletsDataAdapters.git
+        git clone git@github.com:Smart-Droplets-Project/smartDropletsDataAdapters.git ../smartDropletsDataAdapters
         git clone https://github.com/WUR-AI/A-scab.git ../A-scab
     - name: Build Docker Image
       run: |
