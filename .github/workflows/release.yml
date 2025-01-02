@@ -15,16 +15,31 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
+
     - name: Set up SSH Key
       run: |
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan github.com >> ~/.ssh/known_hosts
+
     - name: Clone Private Repository
       run: |
         git clone git@github.com:Smart-Droplets-Project/smartDropletsDataAdapters.git ../smartDropletsDataAdapters
         git clone https://github.com/WUR-AI/A-scab.git ../A-scab
+
     - name: Build Docker Image
       run: |
         docker build -t digitaltwin -f Dockerfile ../
+
+    - name: Authenticate with GHCR
+      run: |
+        echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Tag Docker Image
+      run: |
+        docker tag digitaltwin ghcr.io/${{ github.repository }}/digitaltwin:${{ github.sha }}
+
+    - name: Push Docker Image to GHCR
+      run: |
+        docker push ghcr.io/${{ github.repository }}/digitaltwin:${{ github.sha }}
