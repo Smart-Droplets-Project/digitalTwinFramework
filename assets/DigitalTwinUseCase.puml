@@ -1,0 +1,35 @@
+
+@startuml
+left to right direction
+
+actor User
+usecase "Autonomous Retrofitted Tractor" as ART
+
+rectangle "Dashboard" {
+    usecase "Run Simulation" as UC1
+    usecase "Retrieve Results" as UC2
+    usecase "Approve Simulation" as UC3
+    usecase "Send Mission to Tractor" as UC4
+    usecase "Assimilate Crop Parameter" as UC7
+    usecase "Monitor Mission" as UC8
+}
+
+rectangle "Digital Twin" {
+    usecase "Simulate Field Conditions" as UC5
+    usecase "Generate Results" as UC6
+}
+
+User --> UC1 : starts
+UC1 --> UC5 : triggers simulation
+UC5 --> UC6 : generates output from AI components
+UC6 --> UC2 : provides results
+User --> UC2 : views results
+User --> UC3 : approves simulation
+User --> UC7: inputs measurement data
+User --> UC8: "Monitor Mission"
+ART -> UC8: "Send updates"
+UC7 --> UC5: triggers simulation
+UC3 --> UC4 : sends command
+UC4 --> ART : deploys mission
+
+@enduml

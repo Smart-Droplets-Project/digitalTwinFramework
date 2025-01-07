@@ -1,0 +1,25 @@
+@startuml
+actor User as U
+participant "Web Dashboard" as WD
+participant "DT Simulation Software\n(inside Kubernetes Server)" as SS
+database "Data Management Platform" as DMP
+
+SS -> DMP : Save day results
+U -> WD : Start long simulation\nor assimilate measurements
+WD -> SS : Send request to run simulation\nor assimilate data
+SS -> SS : Run simulation for \nwhole growing season
+SS -> DMP : Save simulation results
+DMP -> SS : Acknowledge save
+
+alt Automatic daily steps
+    loop For each day
+        SS -> SS : Advance simulation \nstep by one
+        SS -> DMP : Save daily results
+    end
+end
+
+
+SS -> WD : Send results\nand crop management actions
+WD -> U : Display results\nand recommendations
+
+@enduml
