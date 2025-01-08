@@ -130,7 +130,7 @@ def create_parcel(
     pest: Optional[agri_food_model.AgriPest] = None,
     do_upload=True,
     name: str = "Wheat Parcel Lithuania",
-    address: str = "Uzumiskės, Kaunas, Lithuania",
+    address: str = "Uzumiskes, Kaunas, Lithuania",  # replaced e accent with normal e
     desciption: str = "Lithuania",
 ) -> agri_food_model.AgriParcel:
     """
