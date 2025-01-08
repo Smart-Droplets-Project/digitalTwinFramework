@@ -142,7 +142,7 @@ def get_site_parameters(site: agri_food_model.agriParcel):
     site_parameters = yaml.safe_load(
         open(os.path.join(CONFIGS_DIR, "site", f"{site_name}.yaml"))
     )
-    # TODO: Temp code, add Lithuanian parameters statistically or do it dynamically
+    # TODO: Temp code, add Lithuanian parameters statically or do it dynamically
     if "initial_site" in site_parameters:
         site_parameters = yaml.safe_load(
             open(os.path.join(CONFIGS_DIR, "site", f"{site_parameters}"))
