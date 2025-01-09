@@ -8,7 +8,7 @@ from geojson import (
 )
 from typing import Union, Optional, List
 
-from ..cropmodel.crop_model import get_default_variables, get_dummy_measurements
+from ..cropmodel.crop_model import get_default_variables, get_dummy_measurements, get_dummy_lai_measurements
 from sd_data_adapter.api import upload
 import sd_data_adapter.models.agri_food as agri_food_model
 import sd_data_adapter.models.device as device_model
@@ -244,6 +244,14 @@ def fill_database(variables: list[str] = get_default_variables()):
             device=obs_dict["DVS"],
             date_observed=date.isoformat(),
             value=row["DVS"],
+        )
+
+    lai_measurements = get_dummy_lai_measurements()
+    for date, row in lai_measurements.iterrows():
+        lai_measurement = create_device_measurement(
+            device=obs_dict["LAI"],
+            date_observed=date.isoformat(),
+            value=row["LAI"],
         )
 
 

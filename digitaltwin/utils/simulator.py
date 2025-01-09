@@ -62,16 +62,28 @@ def run_cropmodel(calibrate_flag=True, debug=False):
             if measurement.controlledProperty == "obs-DVS"
         ]
 
+        lai_measurements = [
+            measurement
+            for measurement in device_measurements
+            if measurement.controlledProperty == "obs-LAI"
+        ]
+
         if calibrate_flag:
 
-            data = [
+            data_dvs = [
                 [dvs_measurement.dateObserved, dvs_measurement.numValue]
                 for dvs_measurement in dvs_measurements
             ]
-            df_dvs = pd.DataFrame(data, columns=["day", "DVS"])
-            df_dvs["day"] = pd.to_datetime(df_dvs["day"])
-            df_dvs = df_dvs.set_index("day")
-            calibrate(digital_twin, df_dvs)
+            data_lai = [
+                [lai_measurement.dateObserved, lai_measurement.numValue]
+                for lai_measurement in lai_measurements
+            ]
+            df_dvs = pd.DataFrame(data_dvs, columns=["day", "DVS"])
+            df_lai = pd.DataFrame(data_lai, columns=["day", "LAI"])
+            df_assimilate = pd.merge(df_dvs, df_lai, on="day", how="outer")
+            df_assimilate["day"] = pd.to_datetime(df_assimilate["day"])
+            df_assimilate = df_assimilate.set_index("day")
+            calibrate(digital_twin, df_assimilate)
 
         # run crop model
         while digital_twin.flag_terminate is False:
@@ -144,7 +156,9 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                     model_output.index, model_output[var], "r-", label="AI agent"
                 )
                 if calibrate_flag and var == "DVS":
-                    ax.plot_date(df_dvs.index, df_dvs.DVS, label="Observation")
+                    ax.plot_date(df_assimilate.index, df_assimilate.DVS, label="DVS Observation")
+                if calibrate_flag and var == "LAI":
+                    ax.plot_date(df_assimilate.index, df_assimilate.LAI, label="LAI Observation")
                 name, unit = titles[var]
                 title = f"{var} - {name}"
                 ax.set_ylabel(f"[{unit}]")
