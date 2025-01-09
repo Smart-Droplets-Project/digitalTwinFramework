@@ -246,15 +246,6 @@ class ModelRerunner(object):
         return model_mod
 
     def __call__(self, par_values):
-        # Hacky fix for calibrating SLATB
-        if "SLATB1" in self.parameters_calibration:
-            self.parameters_calibration.remove("SLATB1")
-            self.parameters_calibration.remove("SLATB2")
-            self.parameters_calibration.append('SLATB')
-        temp_par_values = list(par_values[-2:])
-        par_values = list(par_values[:-2])
-        par_values.append([0.0, temp_par_values[0], 2.0, temp_par_values[1]])
-
         # Check if correct number of parameter values were provided
         model_mod = self.update_cropcropmodel(par_values)
         # add agromanagement
@@ -406,7 +397,7 @@ def get_dummy_lai_measurements() -> pd.DataFrame:
 
 def get_default_calibration_parameters():
     # SLATB for LAI is a table. Some hacky fixes has been implenmented for now
-    return ["TSUM1", "TSUM2", "DLC", "DLO", "TSUMEM", "SLATB"]
+    return ["TSUM1", "TSUM2", "DLC", "DLO", "TSUMEM"]
 
 
 def calibrate(
@@ -420,12 +411,6 @@ def calibrate(
     agro_management = cropmodel._agromanagement
     model_config = cropmodel.mconf.model_config_file
     parameters_mod = {x: parameter_provider._cropdata[x] for x in parameters}
-    #SLATB is a table, needs some processing here to flatten
-    if "SLATB" in parameters_mod.keys():
-        parameters_mod["SLATB1"] = parameters_mod["SLATB"][1]
-        parameters_mod["SLATB2"] = parameters_mod["SLATB"][3]
-        parameters_mod.pop("SLATB", None)
-
     lower_bounds = [i * 0.2 for i in parameters_mod.values()]
     upper_bounds = [i * 1.2 for i in parameters_mod.values()]
     initial_steps = [i * 0.1 for i in parameters_mod.values()]
@@ -442,17 +427,9 @@ def calibrate(
     )
     cropmodel.parameterprovider.clear_override()
     # Set overrides for the new parameter values
-    slatb = [0.0, x[-2], 2.0, x[-1]]
-    if "SLATB1" in parameters_mod.keys():
-        parameters_mod.pop("SLATB1")
-        parameters_mod.pop("SLATB2")
-        parameters_mod["SLATB"] = slatb
     for parname, value in zip(list(parameters_mod.keys()), x):
         if parname in cropmodel.parameterprovider._unique_parameters:
             cropmodel.parameterprovider.set_override(parname, value)
-    if "SLATB" in parameters_mod.keys():
-        x = x[:-2]
-        x.append(slatb)
     updated_cropmodel = objfunc_calculator.modelrerunner.update_cropcropmodel(x)
     print_calibration_parameters(updated_cropmodel)
 
