@@ -12,6 +12,7 @@ import sd_data_adapter.models.agri_food as agri_food_model
 from sd_data_adapter.api import get_by_id
 from sd_data_adapter.models.smartDataModel import Relationship
 from .agromanagement import AgroManagement
+from recommendation import fill_it_up
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
@@ -84,15 +85,14 @@ class CropModel(pcse.engine.Engine):
 
 
 def get_agro_config(
-    crop_name: str,
-    variety_name: str,
-    start_date: datetime.datetime,
-    end_date: datetime.datetime,
-    start_type: str = "sowing",
-    end_type: str = "harvest",
-    max_duration: int = 365,
+        crop_name: str,
+        variety_name: str,
+        start_date: datetime.datetime,
+        end_date: datetime.datetime,
+        start_type: str = "sowing",
+        end_type: str = "harvest",
+        max_duration: int = 365,
 ):
-
     with open(os.path.join(CONFIGS_DIR, "agro", "wheat_cropcalendar.yaml"), "r") as f:
         init_agro_config = yaml.load(f, Loader=yaml.SafeLoader)
     agro_config_container = AgroManagement(init_agro_config)
@@ -111,14 +111,13 @@ def get_agro_config(
 
 
 def get_weather_provider(
-    parcel: agri_food_model.AgriParcel,
+        parcel: agri_food_model.AgriParcel,
 ) -> pcse.input.NASAPowerWeatherDataProvider:
-
     location = None
     for feature in parcel.location["features"]:
         if (
-            feature["properties"]["name"] == "weather location"
-            and feature["geometry"]["type"] == "Point"
+                feature["properties"]["name"] == "weather location"
+                and feature["geometry"]["type"] == "Point"
         ):
             location = feature["geometry"]["coordinates"]
     return pcse.input.NASAPowerWeatherDataProvider(*location)
@@ -168,7 +167,7 @@ def get_titles():
 
 
 def create_digital_twins(
-    parcels: List[agri_food_model.AgriParcel],
+        parcels: List[agri_food_model.AgriParcel],
 ) -> List[CropModel]:
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
@@ -249,10 +248,59 @@ class ModelRerunner(object):
     def __call__(self, par_values):
         # Check if correct number of parameter values were provided
         model_mod = self.update_cropcropmodel(par_values)
-        model_mod.run_till_terminate()
+        # add agromanagement
+        # model_mod.run_till_terminate()
+        self.run_till_terminate_with_recommendations(model_mod)
         df = pd.DataFrame(model_mod.get_output())
         df.index = pd.to_datetime(df.day)
         return df
+
+    # run the updated parameters with management
+    def run_till_terminate_with_recommendations(self, model_mod):
+        while model_mod.flag_terminate is False:
+            self._run(model_mod)
+
+    # TODO maybe a redundant function
+    def _run(self, model_mod):
+        """Make one time step of the simulation.
+        """
+
+        # Update timer
+        model_mod.day, delt = model_mod.timer()
+
+        # State integration
+        model_mod.integrate(model_mod.day, delt)
+
+        # Driving variables
+        model_mod.drv = model_mod._get_driving_variables(model_mod.day)
+
+        # Agromanagement decisions
+        # model_mod.agromanager(model_mod.day, model_mod.drv)
+
+        action = fill_it_up(model_mod.get_output()[-1])
+
+        if action > 0:
+            model_mod._send_signal(signal=pcse.signals.apply_n_snomin,
+                                   amount=action,
+                                   application_depth=10.,
+                                   cnratio=0.,
+                                   f_orgmat=0.,
+                                   f_NH4N=0.5,
+                                   f_NO3N=0.5,
+                                   initial_age=0,
+                                   )
+            model_mod._send_signal(signal=pcse.signals.apply_n,
+                                   amount=action,
+                                   recovery=0.7,
+                                   N_amount=action,
+                                   N_recovery=0.7
+                                   )
+
+        # Rate calculation
+        model_mod.calc_rates(model_mod.day, model_mod.drv)
+
+        if model_mod.flag_terminate is True:
+            model_mod._terminate_simulation(model_mod.day)
 
 
 class ObjectiveFunctionCalculator(object):
@@ -263,7 +311,7 @@ class ObjectiveFunctionCalculator(object):
     ."""
 
     def __init__(
-        self, params, wdp, agro, model_config, parameters_calibration, observations
+            self, params, wdp, agro, model_config, parameters_calibration, observations
     ):
         self.modelrerunner = ModelRerunner(
             params, wdp, agro, model_config, parameters_calibration
@@ -286,7 +334,7 @@ class ObjectiveFunctionCalculator(object):
         df_differences = self.df_simulations - self.df_observations
         # display(df_differences[df_differences.DVS.notnull()].DVS)
         # Compute the RMSE on the DVS column
-        obj_func = np.sqrt(np.mean(df_differences.DVS**2))
+        obj_func = np.sqrt(np.mean(df_differences.DVS ** 2))
         # print(f'{par_values} {obj_func}')
         return obj_func
 
@@ -311,7 +359,6 @@ def optimize(objfunc_calc, p_mod, lower, upper, steps):
 
 
 def get_dummy_measurements() -> pd.DataFrame:
-
     # DVS as published on MARS website
     MARS = [
         [datetime.date(2022, 12, 31), 0.03],
@@ -334,14 +381,24 @@ def get_dummy_measurements() -> pd.DataFrame:
     return Results_MARS
 
 
+def get_dummy_lai_measurements() -> pd.DataFrame:
+    lai = [
+        [datetime.date(2023, 4, 15), 2.01],
+        [datetime.date(2023, 6, 3), 2.51],
+    ]
+    results_lai = pd.DataFrame(lai, columns=["day", "DVS"])
+    results_lai = results_lai.set_index("day")
+    return results_lai
+
+
 def get_default_calibration_parameters():
     return ["TSUM1", "TSUM2", "DLC", "DLO", "TSUMEM"]
 
 
 def calibrate(
-    cropmodel: CropModel,
-    measurements: pd.DataFrame = get_dummy_measurements(),
-    parameters=get_default_calibration_parameters(),
+        cropmodel: CropModel,
+        measurements: pd.DataFrame = get_dummy_measurements(),
+        parameters=get_default_calibration_parameters(),
 ):
     # DVS variables and sowing
     parameter_provider = cropmodel.parameterprovider
