@@ -12,7 +12,7 @@ import sd_data_adapter.models.agri_food as agri_food_model
 from sd_data_adapter.api import get_by_id
 from sd_data_adapter.models.smartDataModel import Relationship
 from .agromanagement import AgroManagement
-from recommendation import fill_it_up
+from digitaltwin.cropmodel.recommendation import fill_it_up
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
@@ -249,8 +249,8 @@ class ModelRerunner(object):
         # Check if correct number of parameter values were provided
         model_mod = self.update_cropcropmodel(par_values)
         # add agromanagement
-        # model_mod.run_till_terminate()
-        self.run_till_terminate_with_recommendations(model_mod)
+        model_mod.run_till_terminate()
+        # model_mod = self.run_till_terminate_with_recommendations(model_mod)
         df = pd.DataFrame(model_mod.get_output())
         df.index = pd.to_datetime(df.day)
         return df
@@ -258,10 +258,13 @@ class ModelRerunner(object):
     # run the updated parameters with management
     def run_till_terminate_with_recommendations(self, model_mod):
         while model_mod.flag_terminate is False:
-            self._run(model_mod)
+            model_mod = self.run(model_mod)
+
+        return model_mod
 
     # TODO maybe a redundant function
-    def _run(self, model_mod):
+    @staticmethod
+    def run(model_mod):
         """Make one time step of the simulation.
         """
 
@@ -275,7 +278,7 @@ class ModelRerunner(object):
         model_mod.drv = model_mod._get_driving_variables(model_mod.day)
 
         # Agromanagement decisions
-        # model_mod.agromanager(model_mod.day, model_mod.drv)
+        model_mod.agromanager(model_mod.day, model_mod.drv)
 
         action = fill_it_up(model_mod.get_output()[-1])
 
@@ -289,18 +292,20 @@ class ModelRerunner(object):
                                    f_NO3N=0.5,
                                    initial_age=0,
                                    )
-            model_mod._send_signal(signal=pcse.signals.apply_n,
-                                   amount=action,
-                                   recovery=0.7,
-                                   N_amount=action,
-                                   N_recovery=0.7
-                                   )
+            # model_mod._send_signal(signal=pcse.signals.apply_n,
+            #                        amount=action,
+            #                        recovery=0.7,
+            #                        N_amount=action,
+            #                        N_recovery=0.7
+            #                        )
 
         # Rate calculation
         model_mod.calc_rates(model_mod.day, model_mod.drv)
 
         if model_mod.flag_terminate is True:
             model_mod._terminate_simulation(model_mod.day)
+
+        return model_mod
 
 
 class ObjectiveFunctionCalculator(object):
