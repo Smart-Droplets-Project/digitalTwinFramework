@@ -249,8 +249,8 @@ class ModelRerunner(object):
         # Check if correct number of parameter values were provided
         model_mod = self.update_cropcropmodel(par_values)
         # add agromanagement
-        model_mod.run_till_terminate()
-        # model_mod = self.run_till_terminate_with_recommendations(model_mod)
+        # model_mod.run_till_terminate()
+        model_mod = self.run_till_terminate_with_recommendations(model_mod)
         df = pd.DataFrame(model_mod.get_output())
         df.index = pd.to_datetime(df.day)
         return df
@@ -292,12 +292,6 @@ class ModelRerunner(object):
                                    f_NO3N=0.5,
                                    initial_age=0,
                                    )
-            # model_mod._send_signal(signal=pcse.signals.apply_n,
-            #                        amount=action,
-            #                        recovery=0.7,
-            #                        N_amount=action,
-            #                        N_recovery=0.7
-            #                        )
 
         # Rate calculation
         model_mod.calc_rates(model_mod.day, model_mod.drv)
