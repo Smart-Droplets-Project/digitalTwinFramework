@@ -28,8 +28,8 @@ class CropgymAgent:
 
         self.cropgym_ort_session = rt.InferenceSession(onnx_model_file)
 
-    @staticmethod
-    def process_crop_model_output(crop_model_output: dict):
+    def process_crop_model_output(self, crop_model_output: dict):
+        list_output = [crop_model_output[key] for key in self.default_variable_list()]
 
         output = ...
 
@@ -42,3 +42,7 @@ class CropgymAgent:
         action, value, constraint, prob = self.cropgym_ort_session.run(None, {'obs': obs.astype(np.float32)})
 
         return action
+
+    @staticmethod
+    def default_variable_list() -> list:
+        return ["DVS", "LAI", "TAGP", "TWSO", "NAVAIL", "NuptakeTotal"]
