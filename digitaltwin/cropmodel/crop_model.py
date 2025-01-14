@@ -13,6 +13,7 @@ from sd_data_adapter.api import get_by_id
 from sd_data_adapter.models.smartDataModel import Relationship
 from .agromanagement import AgroManagement
 from digitaltwin.cropmodel.recommendation import fill_it_up
+from digitaltwin.utils.database import find_parcel_operations, get_parcel_operation_by_date
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
@@ -219,12 +220,13 @@ class ModelRerunner(object):
     parameter values.
     """
 
-    def __init__(self, params, wdp, agro, model_config, parameters_calibration):
+    def __init__(self, params, wdp, agro, model_config, parameters_calibration, **kwargs):
         self.params = params
         self.wdp = wdp
         self.agro = agro
         self.model_config = model_config
         self.parameters_calibration = parameters_calibration
+        self.parcel_operations = kwargs.get("parcel_operations", None)
 
     def update_cropcropmodel(self, par_values):
         if len(par_values) != len(self.parameters_calibration):
@@ -263,8 +265,7 @@ class ModelRerunner(object):
         return model_mod
 
     # TODO maybe a redundant function
-    @staticmethod
-    def run(model_mod):
+    def run(self, model_mod):
         """Make one time step of the simulation.
         """
 
@@ -280,7 +281,17 @@ class ModelRerunner(object):
         # Agromanagement decisions
         model_mod.agromanager(model_mod.day, model_mod.drv)
 
-        action = fill_it_up(model_mod.get_output()[-1])
+        # Grab recommendations from parcel operation
+        if self.parcel_operations is None:
+            action = fill_it_up(model_mod.get_output()[-1])
+        else:
+            action = 0
+            # print(model_mod.day)
+            operations = self.parcel_operations
+            if not operations:
+                action = 0
+            elif operations:
+                action = get_parcel_operation_by_date(operations, model_mod.day)
 
         if action > 0:
             model_mod._send_signal(signal=pcse.signals.apply_n_snomin,
@@ -310,10 +321,11 @@ class ObjectiveFunctionCalculator(object):
     ."""
 
     def __init__(
-            self, params, wdp, agro, model_config, parameters_calibration, observations
+            self, params, wdp, agro, model_config, parameters_calibration, observations, **kwargs,
     ):
+        self.parcel_operations = kwargs.get('parcel_operations', None)
         self.modelrerunner = ModelRerunner(
-            params, wdp, agro, model_config, parameters_calibration
+            params, wdp, agro, model_config, parameters_calibration, parcel_operations=self.parcel_operations,
         )
         self.df_observations = observations
         self.n_calls = 0
@@ -349,7 +361,7 @@ def optimize(objfunc_calc, p_mod, lower, upper, steps):
     opt.set_lower_bounds(lower)
     opt.set_upper_bounds(upper)
     opt.set_initial_step(steps)
-    opt.set_maxeval(20)
+    opt.set_maxeval(60)
     opt.set_ftol_rel(0.1)
 
     x = opt.optimize(list(p_mod.values()))
@@ -386,9 +398,10 @@ def get_dummy_measurements() -> pd.DataFrame:
 
 def get_dummy_lai_measurements() -> pd.DataFrame:
     lai = [
-        [datetime.date(2023, 4, 15), 2.91],
-        [datetime.date(2023, 4, 27), 3.01],
-        [datetime.date(2023, 6, 3), 2.91],
+        [datetime.date(2023, 2, 15), 1.51],
+        [datetime.date(2023, 4, 15), 3.21],
+        [datetime.date(2023, 4, 27), 3.51],
+        [datetime.date(2023, 6, 3), 3.61],
     ]
     results_lai = pd.DataFrame(lai, columns=["day", "LAI"])
     results_lai = results_lai.set_index("day")
@@ -396,8 +409,8 @@ def get_dummy_lai_measurements() -> pd.DataFrame:
 
 
 def get_default_calibration_parameters():
-    # SLATB for LAI is a table. Some hacky fixes has been implenmented for now
-    return ["TSUM1", "TSUM2", "DLC", "DLO", "TSUMEM"]
+    return ["TSUM1", "TSUM2",  # "DLC", "DLO", "TSUMEM",
+            "TDWI", "SPAN"]
 
 
 def calibrate(
@@ -409,6 +422,7 @@ def calibrate(
     parameter_provider = cropmodel.parameterprovider
     weather_data_provider = cropmodel.weatherdataprovider
     agro_management = cropmodel._agromanagement
+    parcel_operations = find_parcel_operations(cropmodel._locatedAtParcel)
     model_config = cropmodel.mconf.model_config_file
     parameters_mod = {x: parameter_provider._cropdata[x] for x in parameters}
     lower_bounds = [i * 0.2 for i in parameters_mod.values()]
@@ -421,6 +435,7 @@ def calibrate(
         model_config,
         list(parameters_mod.keys()),
         measurements,
+        parcel_operations=parcel_operations,
     )
     x = optimize(
         objfunc_calculator, parameters_mod, lower_bounds, upper_bounds, initial_steps

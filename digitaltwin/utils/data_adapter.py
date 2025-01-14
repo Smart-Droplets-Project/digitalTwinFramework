@@ -122,6 +122,25 @@ def create_fertilizer_application(
     return model
 
 
+def create_fertilizer_operation(
+    parcel: str,  # from the CropModel attribute
+    product: agri_food_model.AgriProductType,
+    quantity=60,
+    date: str = "20230310",
+    do_upload=True,
+) -> agri_food_model.AgriParcelOperation:
+    model = agri_food_model.AgriParcelOperation(
+        operationType="fertiliser",
+        hasAgriParcel=parcel,
+        hasAgriProductType=product.id,
+        plannedStartAt=date,
+        quantity=quantity,
+    )
+    if do_upload:
+        upload(model)
+    return model
+
+
 def create_parcel(
     location: Union[FeatureCollection, Point, MultiLineString, Polygon],
     area_parcel: float,
