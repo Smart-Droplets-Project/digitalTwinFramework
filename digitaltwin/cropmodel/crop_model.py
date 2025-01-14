@@ -361,7 +361,7 @@ def optimize(objfunc_calc, p_mod, lower, upper, steps):
     opt.set_lower_bounds(lower)
     opt.set_upper_bounds(upper)
     opt.set_initial_step(steps)
-    opt.set_maxeval(20)
+    opt.set_maxeval(60)
     opt.set_ftol_rel(0.1)
 
     x = opt.optimize(list(p_mod.values()))
@@ -398,9 +398,10 @@ def get_dummy_measurements() -> pd.DataFrame:
 
 def get_dummy_lai_measurements() -> pd.DataFrame:
     lai = [
-        [datetime.date(2023, 4, 15), 2.91],
-        [datetime.date(2023, 4, 27), 3.01],
-        [datetime.date(2023, 6, 3), 2.91],
+        [datetime.date(2023, 2, 15), 1.51],
+        [datetime.date(2023, 4, 15), 3.21],
+        [datetime.date(2023, 4, 27), 3.51],
+        [datetime.date(2023, 6, 3), 3.61],
     ]
     results_lai = pd.DataFrame(lai, columns=["day", "LAI"])
     results_lai = results_lai.set_index("day")
@@ -408,8 +409,8 @@ def get_dummy_lai_measurements() -> pd.DataFrame:
 
 
 def get_default_calibration_parameters():
-    # SLATB for LAI is a table. Some hacky fixes has been implenmented for now
-    return ["TSUM1", "TSUM2", "DLC", "DLO", "TSUMEM"]
+    return ["TSUM1", "TSUM2",  # "DLC", "DLO", "TSUMEM",
+            "TDWI", "SPAN"]
 
 
 def calibrate(
