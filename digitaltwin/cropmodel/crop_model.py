@@ -178,6 +178,7 @@ def create_cropgym_agents(
     for parcel, digital_twin in zip(parcels, digital_twins):
         cropgym_agent = CropgymAgent(
             parcel_id=parcel.id,
+            weather_provider=get_weather_provider(parcel),
             agromanagement=digital_twin.get_agromanagement,
         )
         agents.append(cropgym_agent)

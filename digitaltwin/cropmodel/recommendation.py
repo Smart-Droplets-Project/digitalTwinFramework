@@ -6,6 +6,7 @@ import onnx
 import onnxruntime as rt
 
 from digitaltwin.cropmodel.agromanagement import AgroManagement
+import pcse
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 SRC_DIR = os.path.dirname(SCRIPT_DIR)
@@ -29,10 +30,13 @@ class CropgymAgent:
     def __init__(
             self,
             parcel_id: str,
+            weather_provider: pcse.input.NASAPowerWeatherDataProvider,
             agromanagement: AgroManagement,
             agent_dir: str = AI_DIR,
     ) -> None:
         self.parcel_id = parcel_id
+
+        self.weather_provider = weather_provider
 
         onnx_model_file = os.path.join(agent_dir, "model.onnx")
         self.cropgym_model = onnx.load(onnx_model_file)
@@ -101,7 +105,10 @@ class CropgymAgent:
         :return: return weekly weather. If not available, fill with NaNs.
         '''
 
-        # Need to get from weather data provider under CropModel object
+        # days so far
+        days = [day['day'] for day in crop_model_output]
+
+        weather_data = [self.weather_provider(day) for day in days]
 
         return []
 
