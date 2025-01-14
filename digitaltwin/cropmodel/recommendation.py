@@ -26,7 +26,14 @@ def fill_it_up(crop_model_output: dict):
 
 # TODO: Work in progress
 class CropgymAgent:
-    def __init__(self, agent_dir: str = AI_DIR, agromanagement: AgroManagement = None) -> None:
+    def __init__(
+            self,
+            parcel_id: str,
+            agromanagement: AgroManagement,
+            agent_dir: str = AI_DIR,
+    ) -> None:
+        self.parcel_id = parcel_id
+
         onnx_model_file = os.path.join(agent_dir, "model.onnx")
         self.cropgym_model = onnx.load(onnx_model_file)
         onnx.checker.check_model(self.cropgym_model)
@@ -50,7 +57,15 @@ class CropgymAgent:
 
         week = self.get_week(self.get_latest_date(crop_model_output))
 
-        output = ...
+        list_output.append(week)
+        list_output.append(self.action_freq)
+        list_output.append(self.action_history)
+
+        weather = self.get_weather(crop_model_output)
+
+        output = list_output + weather
+
+        output = np.array(output)
 
         return output
 
@@ -76,15 +91,29 @@ class CropgymAgent:
         start_date = self.agromanagement.get_start_date
 
         delta = date_now - start_date
-        crop = delta.days
+        week = delta.days // 7
 
-        return
+        return week
+
+
+    def get_weather(self, crop_model_output: dict) -> list:
+        '''
+        :return: return weekly weather. If not available, fill with NaNs.
+        '''
+
+        # Need to get from weather data provider under CropModel object
+
+        return []
 
     @staticmethod
     def get_latest_date(crop_model_output: dict):
-        date = crop_model_output["day"]
+        date = crop_model_output[-1]["day"]
         return date
 
     @staticmethod
     def default_variable_list() -> list:
         return ["DVS", "LAI", "TAGP", "TWSO", "NAVAIL", "NuptakeTotal"]
+
+    @staticmethod
+    def weather_variables() -> list:
+        return ["IRRAD", "TMIN", "RAIN"]

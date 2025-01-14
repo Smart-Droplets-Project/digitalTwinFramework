@@ -4,6 +4,7 @@ import sd_data_adapter.models.device as device_model
 
 from digitaltwin.cropmodel.crop_model import (
     create_digital_twins,
+    create_cropgym_agents,
     get_dummy_measurements,
 )
 from digitaltwin.cropmodel.recommendation import fill_it_up
@@ -37,10 +38,11 @@ import datetime
 def run_cropmodel(calibrate_flag=True, debug=False):
     parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
     digital_twins = create_digital_twins(parcels)
+    cropgym_agents = create_cropgym_agents(parcels, digital_twins)
     recommendation = 0
 
     # run digital twins
-    for digital_twin in digital_twins:
+    for digital_twin, cropgym_agent in zip(digital_twins, cropgym_agents):
         parcel_operations = find_parcel_operations(digital_twin._locatedAtParcel)
         devices = find_device(digital_twin._isAgriCrop)
 
@@ -108,7 +110,10 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                     )
                     upsert(device_measurement)
             # get AI recommendation
-            recommendation = fill_it_up(digital_twin.get_output()[-1])
+            if not cropgym_agent:
+                recommendation = fill_it_up(digital_twin.get_output()[-1])
+            else:
+                recommendation = cropgym_agent(digital_twin.get_output())
 
             # create command message
             if recommendation > 0:

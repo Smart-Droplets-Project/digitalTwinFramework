@@ -12,7 +12,7 @@ import sd_data_adapter.models.agri_food as agri_food_model
 from sd_data_adapter.api import get_by_id
 from sd_data_adapter.models.smartDataModel import Relationship
 from .agromanagement import AgroManagement
-from digitaltwin.cropmodel.recommendation import fill_it_up
+from digitaltwin.cropmodel.recommendation import fill_it_up, CropgymAgent
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
@@ -82,6 +82,10 @@ class CropModel(pcse.engine.Engine):
     def _terminate_simulation(self, day):
         super()._terminate_simulation(day)
         self._flag_terminated = True
+
+    @property
+    def get_agromanagement(self):
+        return self._agromanagement
 
 
 def get_agro_config(
@@ -164,6 +168,20 @@ def get_titles():
         "TWSO": ("Weight storage organs", "kg/ha"),
     }
     return result
+
+
+def create_cropgym_agents(
+        parcels: List[agri_food_model.AgriParcel],
+        digital_twins: List[CropModel],
+) -> List[CropgymAgent]:
+    agents = []
+    for parcel, digital_twin in zip(parcels, digital_twins):
+        cropgym_agent = CropgymAgent(
+            parcel_id=parcel.id,
+            agromanagement=digital_twin.get_agromanagement,
+        )
+        agents.append(cropgym_agent)
+    return agents
 
 
 def create_digital_twins(
