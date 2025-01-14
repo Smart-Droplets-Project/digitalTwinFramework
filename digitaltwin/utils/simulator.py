@@ -13,6 +13,8 @@ from digitaltwin.utils.data_adapter import (
     get_recommendation_message,
     create_geojson_from_feature_collection,
     split_device_dicts,
+    create_fertilizer_operation,
+    create_fertilizer
 )
 from digitaltwin.utils.database import (
     get_by_id,
@@ -37,6 +39,7 @@ import datetime
 def run_cropmodel(calibrate_flag=True, debug=False):
     parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
     digital_twins = create_digital_twins(parcels)
+    fertilizer_object = create_fertilizer()
     recommendation = 0
 
     # run digital twins
@@ -87,6 +90,7 @@ def run_cropmodel(calibrate_flag=True, debug=False):
 
         # run crop model
         while digital_twin.flag_terminate is False:
+            parcel_operations = find_parcel_operations(digital_twin._locatedAtParcel)
             parcel_operation = get_parcel_operation_by_date(
                 parcel_operations, digital_twin.day
             )
@@ -131,6 +135,12 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                     waypoints=create_geojson_from_feature_collection(
                         parcel.location, target_rate_value=recommendation
                     ),
+                )
+                operation = create_fertilizer_operation(
+                    parcel=digital_twin._locatedAtParcel,
+                    product=fertilizer_object,
+                    quantity=recommendation,
+                    date=digital_twin.day.strftime("%Y%m%d"),
                 )
 
         print(digital_twin.get_summary_output())
