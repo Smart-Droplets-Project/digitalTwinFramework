@@ -38,11 +38,9 @@ def run_cropmodel(calibrate_flag=True, debug=False):
     parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
     digital_twins = create_digital_twins(parcels)
     fertilizer_object = create_fertilizer()
-    recommendation = 0
 
     # run digital twins
     for digital_twin in digital_twins:
-        parcel_operations = find_parcel_operations(digital_twin._locatedAtParcel)
         devices = find_device(digital_twin._isAgriCrop)
 
         sim_dict = {
@@ -93,9 +91,6 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                 parcel_operations, digital_twin.day
             )
             action = parcel_operation.quantity if parcel_operation else 0
-            # if digital_twin.get_output()[-1]["day"].strftime("%Y-%m-%d") == "2023-03-10" and action == 0:
-            #    action = 60
-            action = action + recommendation
             if debug:
                 print(digital_twin.get_output()[-1]["day"])
             digital_twin.run(1, action)
