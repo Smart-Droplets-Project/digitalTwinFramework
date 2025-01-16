@@ -4,7 +4,6 @@ import sd_data_adapter.models.device as device_model
 
 from digitaltwin.cropmodel.crop_model import (
     create_digital_twins,
-    get_dummy_measurements,
 )
 from digitaltwin.cropmodel.recommendation import fill_it_up
 from digitaltwin.utils.data_adapter import (
@@ -12,9 +11,8 @@ from digitaltwin.utils.data_adapter import (
     generate_rec_message_id,
     get_recommendation_message,
     create_geojson_from_feature_collection,
-    split_device_dicts,
-    create_fertilizer_operation,
-    create_fertilizer
+    create_fertilizer,
+    create_fertilizer_application,
 )
 from digitaltwin.utils.database import (
     get_by_id,
@@ -136,11 +134,12 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                         parcel.location, target_rate_value=recommendation
                     ),
                 )
-                operation = create_fertilizer_operation(
-                    parcel=digital_twin._locatedAtParcel,
+                operation = create_fertilizer_application(
+                    parcel=parcel,
                     product=fertilizer_object,
                     quantity=recommendation,
                     date=digital_twin.day.strftime("%Y%m%d"),
+                    operationtype="sim-fertilizer",
                 )
 
         print(digital_twin.get_summary_output())

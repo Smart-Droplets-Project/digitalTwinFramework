@@ -43,8 +43,10 @@ jobs:
       run: |
         LOWERCASE_REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')
         docker tag digitaltwin ghcr.io/${LOWERCASE_REPO}/digitaltwin:${{ github.sha }}
+        docker tag digitaltwin ghcr.io/${LOWERCASE_REPO}/digitaltwin:latest
 
     - name: Push Docker Image to GHCR
       run: |
         LOWERCASE_REPO=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')
         docker push ghcr.io/${LOWERCASE_REPO}/digitaltwin:${{ github.sha }}
+        docker push ghcr.io/${LOWERCASE_REPO}/digitaltwin:latest
