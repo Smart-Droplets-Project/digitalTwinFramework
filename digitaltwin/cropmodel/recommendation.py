@@ -88,7 +88,7 @@ class CropgymAgent:
         action, value, constraint, prob = self.cropgym_ort_session.run(None, {'obs': obs.astype(np.float32)})
 
         if isinstance(action, np.ndarray):
-            action = action[0]
+            action = float(action[0])
 
         if action > 0:
             self.update_action(action)
