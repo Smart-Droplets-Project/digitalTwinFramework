@@ -108,10 +108,11 @@ def create_fertilizer_application(
     product: agri_food_model.AgriProductType,
     quantity=60,
     date: str = "20230310",
+    operationtype: str = "fertiliser",
     do_upload=True,
 ) -> agri_food_model.AgriParcelOperation:
     model = agri_food_model.AgriParcelOperation(
-        operationType="fertiliser",
+        operationType=operationtype,
         hasAgriParcel=parcel.id,
         hasAgriProductType=product.id,
         plannedStartAt=date,

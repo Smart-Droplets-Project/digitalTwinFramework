@@ -5,7 +5,6 @@ import sd_data_adapter.models.device as device_model
 from digitaltwin.cropmodel.crop_model import (
     create_digital_twins,
     create_cropgym_agents,
-    get_dummy_measurements,
 )
 from digitaltwin.cropmodel.recommendation import fill_it_up
 from digitaltwin.utils.data_adapter import (
@@ -13,7 +12,8 @@ from digitaltwin.utils.data_adapter import (
     generate_rec_message_id,
     get_recommendation_message,
     create_geojson_from_feature_collection,
-    split_device_dicts,
+    create_fertilizer,
+    create_fertilizer_application,
 )
 from digitaltwin.utils.database import (
     get_by_id,
@@ -39,7 +39,7 @@ def run_cropmodel(calibrate_flag=True, debug=False):
     parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
     digital_twins = create_digital_twins(parcels)
     cropgym_agents = create_cropgym_agents(parcels, digital_twins)
-    recommendation = 0
+    fertilizer_object = create_fertilizer()
 
     # run digital twins
     for digital_twin, cropgym_agent in zip(digital_twins, cropgym_agents):
@@ -93,9 +93,6 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                 parcel_operations, digital_twin.day
             )
             action = parcel_operation.quantity if parcel_operation else 0
-            # if digital_twin.get_output()[-1]["day"].strftime("%Y-%m-%d") == "2023-03-10" and action == 0:
-            #    action = 60
-            action = action + recommendation
             if debug:
                 print(digital_twin.get_output()[-1]["day"])
             digital_twin.run(1, action)
@@ -136,6 +133,13 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                     waypoints=create_geojson_from_feature_collection(
                         parcel.location, target_rate_value=recommendation
                     ),
+                )
+                operation = create_fertilizer_application(
+                    parcel=parcel,
+                    product=fertilizer_object,
+                    quantity=recommendation,
+                    date=digital_twin.day.strftime("%Y%m%d"),
+                    operationtype="sim-fertilizer",
                 )
 
         print(digital_twin.get_summary_output())
