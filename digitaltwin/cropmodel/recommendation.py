@@ -6,6 +6,8 @@ import onnx
 import onnxruntime as rt
 
 from digitaltwin.cropmodel.agromanagement import AgroManagement
+from digitaltwin.utils.helpers import get_nested_value
+
 import pcse
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -31,8 +33,9 @@ class CropgymAgent:
             self,
             parcel_id: str,
             weather_provider: pcse.input.NASAPowerWeatherDataProvider,
-            agromanagement: AgroManagement,
+            agromanagement: list,
             agent_dir: str = AI_DIR,
+            timestep: int = 7,
     ) -> None:
         self.parcel_id = parcel_id
 
@@ -46,6 +49,7 @@ class CropgymAgent:
 
         self.agromanagement = agromanagement
 
+        self.timestep = timestep
         self.action_freq = 0
         self.action_history = 0
 
@@ -57,7 +61,7 @@ class CropgymAgent:
         ["DVS", "LAI", "TAGP", "WSO", "NAVAIL", "NuptakeTotal", 'week', 'Naction', 'action_history',
         "IRRAD", "TMIN", "RAIN"]. The last three variables are for the last week.
         '''
-        list_output = [crop_model_output[key] for key in self.default_variable_list()]
+        list_output = [crop_model_output[-1][key] for key in self.default_variable_list]
 
         week = self.get_week(self.get_latest_date(crop_model_output))
 
@@ -67,7 +71,7 @@ class CropgymAgent:
 
         weather = self.get_weather(crop_model_output)
 
-        output = list_output + weather
+        output = [list_output + weather]  # model requires nested list as obs
 
         output = np.array(output)
 
@@ -79,11 +83,12 @@ class CropgymAgent:
 
     def __call__(self, crop_model_output: dict):
 
-        date = self.get_latest_date(crop_model_output)
-
-        obs = self.process_crop_model_output(crop_model_output, date)
+        obs = self.process_crop_model_output(crop_model_output)
 
         action, value, constraint, prob = self.cropgym_ort_session.run(None, {'obs': obs.astype(np.float32)})
+
+        if isinstance(action, np.ndarray):
+            action = action[0]
 
         if action > 0:
             self.update_action(action)
@@ -92,7 +97,7 @@ class CropgymAgent:
 
     def get_week(self, date_now: datetime.date):
 
-        start_date = self.agromanagement.get_start_date
+        start_date = get_nested_value(self.agromanagement[0], 'crop_start_date')
 
         delta = date_now - start_date
         week = delta.days // 7
@@ -102,25 +107,38 @@ class CropgymAgent:
 
     def get_weather(self, crop_model_output: dict) -> list:
         '''
-        :return: return weekly weather. If not available, fill with NaNs.
+        :return: return weather variables of the last week
         '''
 
         # days so far
         days = [day['day'] for day in crop_model_output]
 
+        # Check if there are at least 7 days for the RL obs
+        if len(days) < 7:
+            earliest_date = days[0]
+
+            # Add dates that predate the earliest date
+            while len(days) < 7:
+                earliest_date -= datetime.timedelta(days=1)
+                days.insert(0, earliest_date)
+        else:
+            days = days[-7:]
+
         weather_data = [self.weather_provider(day) for day in days]
 
-        return []
+        weather_obs = [getattr(wdc, var) for wdc in weather_data for var in self.weather_variables]
+
+        return weather_obs
 
     @staticmethod
     def get_latest_date(crop_model_output: dict):
         date = crop_model_output[-1]["day"]
         return date
 
-    @staticmethod
-    def default_variable_list() -> list:
+    @property
+    def default_variable_list(self) -> list:
         return ["DVS", "LAI", "TAGP", "TWSO", "NAVAIL", "NuptakeTotal"]
 
-    @staticmethod
-    def weather_variables() -> list:
+    @property
+    def weather_variables(self) -> list:
         return ["IRRAD", "TMIN", "RAIN"]

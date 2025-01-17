@@ -43,7 +43,6 @@ def run_cropmodel(calibrate_flag=True, debug=False):
 
     # run digital twins
     for digital_twin, cropgym_agent in zip(digital_twins, cropgym_agents):
-        parcel_operations = find_parcel_operations(digital_twin._locatedAtParcel)
         devices = find_device(digital_twin._isAgriCrop)
 
         sim_dict = {
@@ -89,6 +88,7 @@ def run_cropmodel(calibrate_flag=True, debug=False):
 
         # run crop model
         while digital_twin.flag_terminate is False:
+            parcel_operations = find_parcel_operations(digital_twin._locatedAtParcel)
             parcel_operation = get_parcel_operation_by_date(
                 parcel_operations, digital_twin.day
             )
