@@ -27,19 +27,15 @@ def fill_it_up(crop_model_output: dict):
     return result
 
 
-# TODO: Work in progress
 class CropgymAgent:
     def __init__(
             self,
             parcel_id: str,
-            weather_provider: pcse.input.NASAPowerWeatherDataProvider,
             agromanagement: list,
             agent_dir: str = AI_DIR,
             timestep: int = 7,
     ) -> None:
         self.parcel_id = parcel_id
-
-        self.weather_provider = weather_provider
 
         onnx_model_file = os.path.join(agent_dir, "model.onnx")
         self.cropgym_model = onnx.load(onnx_model_file)
@@ -53,7 +49,7 @@ class CropgymAgent:
         self.action_freq = 0
         self.action_history = 0
 
-    def process_crop_model_output(self, crop_model_output: dict):
+    def process_crop_model_output(self, crop_model_output: dict, weather: list):
         '''
         Process WOFOST output for cropgym agent
 
@@ -69,8 +65,6 @@ class CropgymAgent:
         list_output.append(self.action_freq)
         list_output.append(self.action_history)
 
-        weather = self.get_weather(crop_model_output)
-
         output = [list_output + weather]  # model requires nested list as obs
 
         output = np.array(output)
@@ -81,9 +75,9 @@ class CropgymAgent:
         self.action_freq += 1
         self.action_history += action
 
-    def __call__(self, crop_model_output: dict):
+    def __call__(self, crop_model_output: dict, weather: dict):
 
-        obs = self.process_crop_model_output(crop_model_output)
+        obs = self.process_crop_model_output(crop_model_output, weather)
 
         action, value, constraint, prob = self.cropgym_ort_session.run(None, {'obs': obs.astype(np.float32)})
 
@@ -103,32 +97,6 @@ class CropgymAgent:
         week = delta.days // 7
 
         return week
-
-
-    def get_weather(self, crop_model_output: dict) -> list:
-        '''
-        :return: return weather variables of the last week
-        '''
-
-        # days so far
-        days = [day['day'] for day in crop_model_output]
-
-        # Check if there are at least 7 days for the RL obs
-        if len(days) < 7:
-            earliest_date = days[0]
-
-            # Add dates that predate the earliest date
-            while len(days) < 7:
-                earliest_date -= datetime.timedelta(days=1)
-                days.insert(0, earliest_date)
-        else:
-            days = days[-7:]
-
-        weather_data = [self.weather_provider(day) for day in days]
-
-        weather_obs = [getattr(wdc, var) for wdc in weather_data for var in self.weather_variables]
-
-        return weather_obs
 
     @staticmethod
     def get_latest_date(crop_model_output: dict):

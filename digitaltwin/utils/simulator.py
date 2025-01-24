@@ -5,6 +5,7 @@ import sd_data_adapter.models.device as device_model
 from digitaltwin.cropmodel.crop_model import (
     create_digital_twins,
     create_cropgym_agents,
+    get_weather_provider
 )
 from digitaltwin.cropmodel.recommendation import fill_it_up
 from digitaltwin.utils.data_adapter import (
@@ -24,6 +25,7 @@ from digitaltwin.utils.database import (
     find_command_messages,
     get_parcel_operation_by_date,
 )
+from digitaltwin.utils.helpers import get_weather
 
 from digitaltwin.cropmodel.crop_model import (
     get_default_variables,
@@ -44,6 +46,8 @@ def run_cropmodel(calibrate_flag=True, debug=False):
     # run digital twins
     for digital_twin, cropgym_agent in zip(digital_twins, cropgym_agents):
         devices = find_device(digital_twin._isAgriCrop)
+        parcel = get_by_id(digital_twin._locatedAtParcel, ctx=AgriFood.ctx)
+        weather_provider = get_weather_provider(parcel)
 
         sim_dict = {
             device.controlledProperty: (
@@ -96,6 +100,8 @@ def run_cropmodel(calibrate_flag=True, debug=False):
             if debug:
                 print(digital_twin.get_output()[-1]["day"])
             digital_twin.run(1, action)
+
+            week_weather = get_weather(digital_twin.get_output(), weather_provider)
             for variable, (device, device_measurement) in sim_dict.items():
                 stripped_variable = variable.split("-", 1)[1]
                 if digital_twin.get_output()[-1][stripped_variable] is not None:
@@ -110,7 +116,9 @@ def run_cropmodel(calibrate_flag=True, debug=False):
             if not cropgym_agent:
                 recommendation = fill_it_up(digital_twin.get_output()[-1])
             else:
-                recommendation = cropgym_agent(digital_twin.get_output())
+                recommendation = cropgym_agent(digital_twin.get_output(),
+                                               week_weather,
+                                               )
 
             # create command message
             if recommendation > 0:
@@ -125,7 +133,6 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                     day=digital_twin.day.isoformat(),
                     parcel_id=digital_twin._locatedAtParcel,
                 )
-                parcel = get_by_id(digital_twin._locatedAtParcel, ctx=AgriFood.ctx)
                 command = create_command_message(
                     message_id=command_message_id,
                     command=recommendation_message,
