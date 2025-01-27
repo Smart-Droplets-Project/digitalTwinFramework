@@ -206,7 +206,8 @@ def get_coordinates(
 
 
 def fill_database(variables: list[str] = get_default_variables()):
-    wheat_crop = create_crop("wheat")
+    wheat_pest = create_agripest(description="alternaria")
+    wheat_crop = create_crop("wheat", pest=wheat_pest)
     soil = create_agrisoil()
     geo_feature_collection = generate_feature_collections(
         point=Point((52.0, 5.5)),  # for weather data (latitude, longitude)
@@ -227,6 +228,12 @@ def fill_database(variables: list[str] = get_default_variables()):
     parcel = create_parcel(
         location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil
     )
+
+    for variable in ["dectection_score"]:
+        device = create_device(
+            controlled_asset=wheat_pest.id, variable=f"obs-{variable}"
+        )
+
     for variable in variables:
         device = create_device(
             controlled_asset=wheat_crop.id, variable=f"sim-{variable}"
