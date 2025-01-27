@@ -8,15 +8,19 @@ from geojson import (
 )
 from typing import Union, Optional, List
 
-from ..cropmodel.crop_model import get_default_variables, get_dummy_measurements, get_dummy_lai_measurements
+from ..cropmodel.crop_model import (
+    get_default_variables,
+    get_dummy_measurements,
+    get_dummy_lai_measurements,
+)
 from sd_data_adapter.api import upload
 import sd_data_adapter.models.agri_food as agri_food_model
 import sd_data_adapter.models.device as device_model
 import sd_data_adapter.models.autonomous_mobile_robot as autonomous_mobile_robot
 
 
-def create_agripest(do_upload=True):
-    model = agri_food_model.AgriPest(description="ascab")
+def create_agripest(do_upload=True, description: str = "ascab"):
+    model = agri_food_model.AgriPest(description=description)
     if do_upload:
         upload(model)
     return model
