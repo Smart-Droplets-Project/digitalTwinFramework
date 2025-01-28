@@ -80,13 +80,18 @@ def create_device(controlled_asset: str, variable: str, do_upload=True):
 
 
 def create_device_measurement(
-    device: device_model.Device, date_observed: str, value: float, do_upload=True
+    device: device_model.Device,
+    date_observed: str,
+    value: float,
+    location=None,
+    do_upload=True,
 ):
     model = device_model.DeviceMeasurement(
         controlledProperty=device.controlledProperty,
         dateObserved=date_observed,
         numValue=value,
         refDevice=device.id,
+        location=location,
     )
     if do_upload:
         upload(model)
