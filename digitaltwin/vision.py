@@ -1,5 +1,6 @@
 from datetime import datetime
 import argparse
+from geojson import MultiPoint
 
 from sd_data_adapter.client import DAClient
 from sd_data_adapter.api import search
@@ -22,8 +23,17 @@ from digitaltwin.cropmodel.crop_model import get_default_variables
 
 
 def get_detection_score_in_parcel(parcel_area):
-    # your code here
+    # your code here: get a score for the given parcel area
     return 0.7
+
+
+def get_locations_of_detections() -> MultiPoint:
+    coordinates_detections = [
+        (23.9100961, 55.126702),
+        (23.9081435, 55.1224445),
+    ]
+    multi_point = MultiPoint(coordinates_detections)
+    return multi_point
 
 
 def main():
@@ -45,29 +55,51 @@ def main():
 
     for parcel in parcels:
         parcel_area = get_coordinates(parcel.location, "Polygon")
+        # Option 1: a single score per parcel
         score = get_detection_score_in_parcel(parcel_area)
+        # Option 2: get locations of detections within the given parcel
+        locations = get_locations_of_detections()
         crop = get_by_id(parcel.hasAgriCrop["object"])
         pest = get_by_id(crop.hasAgriPest["object"])
         devices = find_device(pest.id)
+        #  the device (with its device measurements) is linked to a pest
+        #  the pest is linked to a crop (that is linked to a given parcel)
         device_dict = {device.controlledProperty: device for device in devices}
 
         for variable, device in device_dict.items():
-            if variable == "obs-dectection_score":
+            # Option 1
+            if variable == "obs-detection_score":
                 create_device_measurement(
                     device=device,
                     date_observed=datetime.utcnow().isoformat() + "Z",
                     value=score,
                 )
+            # Option 2
+            if variable == "obs-detections":
+                print(f"save detections {locations}")
+                create_device_measurement(
+                    device=device,
+                    date_observed=datetime.utcnow().isoformat() + "Z",
+                    value=1.0,
+                    location=locations,
+                )
     print("The following DeviceMeasurements were stored:\n")
-    device_measures = search(
+    obs_scores = search(
         {
             "type": "DeviceMeasurement",
-            "q": f'controlledProperty=="obs-dectection_score"',
+            "q": 'controlledProperty=="obs-detection_score"',
         },
         ctx=Devices.ctx,
     )
-
-    print(device_measures)
+    obs_detections = search(
+        {
+            "type": "DeviceMeasurement",
+            "q": 'controlledProperty=="obs-detections"',
+        },
+        ctx=Devices.ctx,
+    )
+    print(obs_scores)
+    print(obs_detections)
 
 
 if __name__ == "__main__":

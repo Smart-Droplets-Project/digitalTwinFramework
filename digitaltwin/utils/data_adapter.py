@@ -233,7 +233,7 @@ def fill_database(variables: list[str] = get_default_variables()):
         location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil
     )
 
-    for variable in ["dectection_score"]:
+    for variable in ["detection_score", "detections"]:
         device = create_device(
             controlled_asset=wheat_pest.id, variable=f"obs-{variable}"
         )
