@@ -16,7 +16,7 @@ geojson= "^2.5.0"
 gymnasium = "^0.29.1"
 jupyter = "^1.1.1"
 pandas = "^2.2.3"
-sd-data-adapter = {git = "https://github.com/Smart-Droplets-Project/digitalTwinFramework.git"}
+sd-data-adapter = {git = "https://github.com/Smart-Droplets-Project/smartDropletsDataAdapters.git"}
 ascab = {git = "https://github.com/BigDataWUR/A-scab.git"}
 fastapi = "^0.115.2"
 uvicorn = "^0.31.1"
