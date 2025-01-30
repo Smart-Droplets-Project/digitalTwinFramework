@@ -25,7 +25,10 @@ from digitaltwin.utils.database import (
     find_command_messages,
     get_parcel_operation_by_date,
 )
-from digitaltwin.utils.helpers import get_weather
+from digitaltwin.utils.helpers import (
+    get_weather,
+    get_simulated_days
+)
 
 from digitaltwin.cropmodel.crop_model import (
     get_default_variables,
@@ -101,7 +104,9 @@ def run_cropmodel(calibrate_flag=True, debug=False):
                 print(digital_twin.get_output()[-1]["day"])
             digital_twin.run(1, action)
 
-            week_weather = get_weather(digital_twin.get_output(), weather_provider)
+            dates = get_simulated_days(digital_twin.get_output())
+
+            week_weather = get_weather(dates, weather_provider)
             for variable, (device, device_measurement) in sim_dict.items():
                 stripped_variable = variable.split("-", 1)[1]
                 if digital_twin.get_output()[-1][stripped_variable] is not None:

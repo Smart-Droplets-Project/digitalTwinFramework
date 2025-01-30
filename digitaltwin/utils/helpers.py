@@ -15,15 +15,12 @@ def get_nested_value(data, target_key):
     return None
 
 
-def get_weather(crop_model_output: dict,
+def get_weather(days: list,
                 weather_provider,
                 weather_variables: list = ["IRRAD", "TMIN", "RAIN"]) -> list:
-    '''
+    """
     :return: return weather variables of the last week
-    '''
-
-    # days so far
-    days = [day['day'] for day in crop_model_output]
+    """
 
     # Check if there are at least 7 days for the RL obs
     if len(days) < 7:
@@ -41,3 +38,11 @@ def get_weather(crop_model_output: dict,
     weather_obs = [getattr(wdc, var) for wdc in weather_data for var in weather_variables]
 
     return weather_obs
+
+
+def get_simulated_days(crop_model_output: dict,) -> list:
+    """
+    :return: a list of days from the crop model simulation so far
+    """
+
+    return [day['day'] for day in crop_model_output]
