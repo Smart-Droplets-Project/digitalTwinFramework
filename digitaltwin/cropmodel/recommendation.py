@@ -75,7 +75,7 @@ class CropgymAgent:
         self.action_freq += 1
         self.action_history += action
 
-    def __call__(self, crop_model_output: dict, weather: dict):
+    def __call__(self, crop_model_output: dict, weather: list):
 
         obs = self.process_crop_model_output(crop_model_output, weather)
 
