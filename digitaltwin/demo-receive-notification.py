@@ -1,4 +1,4 @@
-import argparse
+import os
 
 from digitaltwin.utils.simulator import run_cropmodel
 
@@ -6,15 +6,22 @@ from fastapi import FastAPI, Request
 from ngsildclient import SubscriptionBuilder
 from sd_data_adapter.client import DAClient
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--orionhost", type=str, default="localhost", help="Hostname orion")
-parser.add_argument("--webserverhost", type=str, default="localhost", help="Hostname webserver")
-args = parser.parse_args()
-
 app = FastAPI()
 
-client = DAClient.get_instance(host=args.orionhost, port=1026)
+# Host and Port are injected as environment variables
+ORION_HOST = os.environ['ORION_HOST']
+ORION_PORT = os.environ['ORION_PORT']
 
+client = DAClient.get_instance(host=ORION_HOST, port=ORION_PORT)
+
+
+# We need a new 
+@app.post("/manual-sim")
+async def receive_notification(request: Request, debug=False):
+    # TODO: @michiel @hilmy
+    # This is a new endpoint which can react to manually triggered user simulations
+    # We need to define what is needed as input. Maybe just the parcel ID (or crop ID)?
+    pass
 
 @app.post("/notification")
 async def receive_notification(request: Request, debug=False):
@@ -49,7 +56,10 @@ def subscribe_to_ocb(host):
 
 
 if __name__ == "__main__":
-    subscribe_to_ocb(args.webserverhost)
+    my_host = os.environ["DIGITAL_TWIN_HOST"]
+    subscribe_to_ocb(my_host)
+
+    # TODO: @hilmy @michiel Create a CRON job to run every morning and run the simulation
 
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
