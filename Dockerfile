@@ -1,6 +1,7 @@
 FROM python:3.11-slim
 
-RUN pip install poetry
+RUN pip install poetry && \
+    poetry config virtualenvs.create false
 
 WORKDIR /app/
 
@@ -12,4 +13,4 @@ COPY smartDropletsDataAdapters /app/smartDropletsDataAdapters
 RUN poetry install
 
 # Run python script which starts a Flask server
-CMD ['poetry', 'run', 'python', '/app/digitaltwin/demo-receive-notification.py']
+CMD ['python', '/app/digitaltwin/demo-receive-notification.py']
