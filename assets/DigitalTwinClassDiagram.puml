@@ -31,6 +31,10 @@ class AgriPest {
 class AgriProductType {
     + name: String
 }
+class CommandMessage {
+    + command: String
+    + waypoints: GeoProperty
+}
 
 /'
 class FeatureCollection {
@@ -60,6 +64,7 @@ Device --> AgriPest: ControlledAsset
 AgriParcelOperation --> AgriParcel : hasAgriParcel
 AgriParcelOperation --> AgriProductType : hasAgriProductType
 Device  --> AgriCrop : ControlledAsset
+CommandMessage --> AgriParcel : locatedAtParcel
 /'
 class DigitalTwin{
 }

@@ -8,15 +8,19 @@ from geojson import (
 )
 from typing import Union, Optional, List
 
-from ..cropmodel.crop_model import get_default_variables, get_dummy_measurements, get_dummy_lai_measurements
+from ..cropmodel.crop_model import (
+    get_default_variables,
+    get_dummy_measurements,
+    get_dummy_lai_measurements,
+)
 from sd_data_adapter.api import upload
 import sd_data_adapter.models.agri_food as agri_food_model
 import sd_data_adapter.models.device as device_model
 import sd_data_adapter.models.autonomous_mobile_robot as autonomous_mobile_robot
 
 
-def create_agripest(do_upload=True):
-    model = agri_food_model.AgriPest(description="ascab")
+def create_agripest(do_upload=True, description: str = "ascab"):
+    model = agri_food_model.AgriPest(description=description)
     if do_upload:
         upload(model)
     return model
@@ -76,13 +80,18 @@ def create_device(controlled_asset: str, variable: str, do_upload=True):
 
 
 def create_device_measurement(
-    device: device_model.Device, date_observed: str, value: float, do_upload=True
+    device: device_model.Device,
+    date_observed: str,
+    value: float,
+    location=None,
+    do_upload=True,
 ):
     model = device_model.DeviceMeasurement(
         controlledProperty=device.controlledProperty,
         dateObserved=date_observed,
         numValue=value,
         refDevice=device.id,
+        location=location,
     )
     if do_upload:
         upload(model)
@@ -206,7 +215,8 @@ def get_coordinates(
 
 
 def fill_database(variables: list[str] = get_default_variables()):
-    wheat_crop = create_crop("wheat")
+    wheat_pest = create_agripest(description="alternaria")
+    wheat_crop = create_crop("wheat", pest=wheat_pest)
     soil = create_agrisoil()
     geo_feature_collection = generate_feature_collections(
         point=Point((52.0, 5.5)),  # for weather data (latitude, longitude)
@@ -227,6 +237,12 @@ def fill_database(variables: list[str] = get_default_variables()):
     parcel = create_parcel(
         location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil
     )
+
+    for variable in ["detection_score", "detections"]:
+        device = create_device(
+            controlled_asset=wheat_pest.id, variable=f"obs-{variable}"
+        )
+
     for variable in variables:
         device = create_device(
             controlled_asset=wheat_crop.id, variable=f"sim-{variable}"
