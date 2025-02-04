@@ -6,9 +6,9 @@ RUN pip install poetry && \
 
 WORKDIR /app/
 
-COPY digitalTwinFramework/pyproject.toml /app/
-COPY digitalTwinFramework/README.md /app/
-COPY digitalTwinFramework/digitaltwin /app/digitaltwin
+COPY pyproject.toml /app/
+COPY README.md /app/
+COPY digitaltwin /app/digitaltwin
 
 RUN poetry install
 
