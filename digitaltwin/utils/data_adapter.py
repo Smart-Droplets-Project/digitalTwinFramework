@@ -3,6 +3,7 @@ from geojson import (
     Polygon,
     MultiLineString,
     Point,
+    MultiPoint,
     Feature,
     FeatureCollection,
 )
@@ -212,6 +213,32 @@ def get_coordinates(
             coords = feature["geometry"]["coordinates"]
             multi_line_string_coords.append(coords)
     return multi_line_string_coords
+
+
+def map_pest_locations_to_id(
+        pests: list[agri_food_model.AgriPest],
+        pest_locations: dict[str, MultiPoint],
+) -> dict:
+    pest_map = {}
+    for pest in pests:
+        if pest.description in pest_locations:
+            pest_map[pest.id] = pest_locations[pest.description]
+    return pest_map
+
+
+# TODO: WIP
+def map_pest_locations_to_parcel(
+        parcel: agri_food_model.AgriParcel,
+        pest_locations: dict[str, MultiPoint],
+) -> dict:
+
+    pest_map = {}
+    for pest, location in pest_locations.items():
+        if location in parcel.location.Polygon:
+            pest_map[pest] = location
+
+    return pest_map
+
 
 
 def fill_database(variables: list[str] = get_default_variables()):

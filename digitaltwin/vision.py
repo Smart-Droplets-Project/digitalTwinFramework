@@ -18,6 +18,9 @@ from digitaltwin.utils.data_adapter import (
     create_device_measurement,
     get_coordinates,
     fill_database,
+    fill_database_ascab,
+    map_pest_locations_to_id,
+    map_pest_locations_to_parcel
 )
 from digitaltwin.cropmodel.crop_model import get_default_variables
 
@@ -54,6 +57,13 @@ def get_locations_of_detections_apple_alternaria() -> MultiPoint:
     return multi_point
 
 
+def get_demo_pest_location() -> dict[str, MultiPoint]:
+    return {
+        'alternaria': get_locations_of_detections_apple_alternaria(),
+        'ascab': get_locations_of_detections_ascab()
+    }
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -67,9 +77,10 @@ def main():
 
     # fill database with demo data
     if not has_demodata():
-        fill_database(variables=get_default_variables())
+        # fill_database(variables=get_default_variables())
+        fill_database_ascab()
 
-    parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
+    parcels = search(get_demo_parcels("Serrater"), ctx=AgriFood.ctx)
 
     for parcel in parcels:
         parcel_area = get_coordinates(parcel.location, "Polygon")
@@ -77,11 +88,16 @@ def main():
         score = get_detection_score_in_parcel(parcel_area)
         # Option 2: get locations of detections within the given parcel
         locations = get_locations_of_detections()
+        locations_pests = get_demo_pest_location()
+
         crop = get_by_id(parcel.hasAgriCrop["object"])
         pest = [get_by_id(pest_id) for pest_id in crop.hasAgriPest["object"]]
         devices = [find_device(p.id) for p in pest]
         #  Flatten the devices list
         devices = [device for sublist in devices for device in sublist]
+        #  Maps detection locations to pest
+        # pest_map = map_pest_locations_to_parcel(parcel, locations_pests)
+        pest_map = map_pest_locations_to_id(pest, locations_pests)
         #  the device (with its device measurements) is linked to a pest
         #  the pest is linked to a crop (that is linked to a given parcel)
         device_dict = {device.controlledProperty: device for device in devices}
@@ -89,19 +105,20 @@ def main():
         for variable, device in device_dict.items():
             # Option 1
             if variable == "obs-detection_score":
-                create_device_measurement(
+                score_object = create_device_measurement(
                     device=device,
                     date_observed=datetime.utcnow().isoformat() + "Z",
                     value=score,
+                    location=pest_map[device.controlledAsset],
                 )
             # Option 2
             if variable == "obs-detections":
                 print(f"save detections {locations}")
-                create_device_measurement(
+                detection_object = create_device_measurement(
                     device=device,
                     date_observed=datetime.utcnow().isoformat() + "Z",
                     value=1.0,
-                    location=locations,
+                    location=pest_map[device.controlledAsset],
                 )
     print("The following DeviceMeasurements were stored:\n")
     obs_scores = search(
