@@ -19,9 +19,12 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v3
 
-    - name: Clone Private Repository
+    - name: Clone Other Repository
       run: |
-        git clone https://github.com/Smart-Droplets-Project/smartDropletsDataAdapters.git ../smartDropletsDataAdapters
+        git clone --depth 1 --branch main https://github.com/Smart-Droplets-Project/smartDropletsDataAdapters.git ../smartDropletsDataAdapters
+        pushd ../smartDropletsDataAdapters
+        git checkout f6496f05b57d3ba8
+        popd
         git clone https://github.com/WUR-AI/A-scab.git ../A-scab
 
     - name: Build Docker Image
