@@ -13,4 +13,4 @@ COPY digitalTwinFramework/digitaltwin /app/digitaltwin
 RUN poetry install
 
 # Run python script which starts a Flask server
-CMD ['python', '/app/digitaltwin/demo-receive-notification.py']
+CMD ["python", "/app/digitaltwin/demo-receive-notification.py"]
