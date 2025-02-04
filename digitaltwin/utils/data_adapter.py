@@ -28,7 +28,7 @@ def create_agripest(do_upload=True, description: str = "ascab"):
 
 def create_crop(
     crop_type: str,
-    pest: Optional[agri_food_model.AgriPest] = None,
+    pest: Optional[List[agri_food_model.AgriPest]] = None,
     do_upload=True,
 ) -> agri_food_model.AgriCrop:
     """
@@ -49,7 +49,7 @@ def create_crop(
             "20221003",
             "20230820",
         ],  # List of planting and harvest date in YYYYMMDD in str
-        **({"hasAgriPest": pest.id} if pest else {}),
+        **({"hasAgriPest": [p.id for p in pest]} if pest else {}),
     )
     if do_upload:
         upload(model)
@@ -216,7 +216,7 @@ def get_coordinates(
 
 def fill_database(variables: list[str] = get_default_variables()):
     wheat_pest = create_agripest(description="alternaria")
-    wheat_crop = create_crop("wheat", pest=wheat_pest)
+    wheat_crop = create_crop("wheat", pest=[wheat_pest])
     soil = create_agrisoil()
     geo_feature_collection = generate_feature_collections(
         point=Point((52.0, 5.5)),  # for weather data (latitude, longitude)
@@ -273,7 +273,9 @@ def fill_database(variables: list[str] = get_default_variables()):
 
 
 def fill_database_ascab():
-    apple_pest = create_agripest()
+    scab = create_agripest()
+    alternaria = create_agripest(description="alternaria")
+    apple_pest = [scab, alternaria]
     apple_crop = create_crop(crop_type="apple", pest=apple_pest)
     geo_feature_collection = generate_feature_collections(
         point=Point((42.16, 3.09)),  # for weather data (latitude, longitude)
@@ -304,6 +306,12 @@ def fill_database_ascab():
         device = create_device(
             controlled_asset=apple_crop.id, variable=f"sim-{variable}"
         )
+
+    for variable in ["detection_score", "detections"]:
+        for pest in apple_pest:
+            device = create_device(
+                controlled_asset=pest.id, variable=f"obs-{variable}"
+            )
 
 
 def generate_rec_message_id(day: str, parcel_id: str):

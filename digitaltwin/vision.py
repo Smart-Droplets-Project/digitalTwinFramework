@@ -36,6 +36,24 @@ def get_locations_of_detections() -> MultiPoint:
     return multi_point
 
 
+def get_locations_of_detections_ascab() -> MultiPoint:
+    coordinates_detections = [
+        (3.0936112, 42.1625702),
+        (3.0945098, 42.1619982),
+    ]
+    multi_point = MultiPoint(coordinates_detections)
+    return multi_point
+
+
+def get_locations_of_detections_apple_alternaria() -> MultiPoint:
+    coordinates_detections = [
+        (3.0936112, 42.1623702),
+        (3.0945098, 42.1620982),
+    ]
+    multi_point = MultiPoint(coordinates_detections)
+    return multi_point
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -60,8 +78,10 @@ def main():
         # Option 2: get locations of detections within the given parcel
         locations = get_locations_of_detections()
         crop = get_by_id(parcel.hasAgriCrop["object"])
-        pest = get_by_id(crop.hasAgriPest["object"])
-        devices = find_device(pest.id)
+        pest = [get_by_id(pest_id) for pest_id in crop.hasAgriPest["object"]]
+        devices = [find_device(p.id) for p in pest]
+        #  Flatten the devices list
+        devices = [device for sublist in devices for device in sublist]
         #  the device (with its device measurements) is linked to a pest
         #  the pest is linked to a crop (that is linked to a given parcel)
         device_dict = {device.controlledProperty: device for device in devices}
