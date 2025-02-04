@@ -8,9 +8,7 @@ import onnxruntime as rt
 from digitaltwin.utils.helpers import get_nested_value
 
 AI_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    "configs",
-    "AI_fertilizer_agent",
+    os.path.dirname(os.path.realpath(__file__)), "configs", "AI_fertilizer_agent"
 )
 
 
