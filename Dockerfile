@@ -10,3 +10,6 @@ COPY digitalTwinFramework/digitaltwin /app/digitaltwin
 COPY smartDropletsDataAdapters /app/smartDropletsDataAdapters
 
 RUN poetry install
+
+# Run python script which starts a Flask server
+CMD ['poetry', 'run', 'python', '/app/digitaltwin/demo-receive-notification.py']
