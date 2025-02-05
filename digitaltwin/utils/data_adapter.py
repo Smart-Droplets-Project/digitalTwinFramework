@@ -243,7 +243,6 @@ def map_pest_detections_to_device_id(
     return pest_map
 
 
-# TODO: WIP
 def map_pest_detections_to_parcel(
         parcel_area: GeoJSON,
         pests: agri_food_model.AgriPest,

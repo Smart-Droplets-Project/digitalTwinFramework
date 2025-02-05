@@ -97,7 +97,7 @@ def main():
         #  Flatten the devices list
         devices = [device for sublist in devices for device in sublist]
         #  Maps detection locations to pest
-        pest_map = map_pest_detections_to_device_id(pests, pest_detections)
+        pest_map = map_pest_detections_to_device_id(pests, pest_detections)  # uncomment for id method
         #  the device (with its device measurements) is linked to a pest
         #  the pest is linked to a crop (that is linked to a given parcel)
         device_dict = {device.controlledProperty: device for device in devices}
