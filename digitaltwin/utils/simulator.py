@@ -90,12 +90,12 @@ def run_cropmodel(
             df_assimilate["day"] = pd.to_datetime(df_assimilate["day"])
             df_assimilate = df_assimilate.set_index("day")
             min_date = df_assimilate.index.min().date()
-            if end_date > min_date:
+            if end_date and end_date > min_date:
                 calibrate(digital_twin, df_assimilate, end_date=end_date)
 
         # run crop model
         while digital_twin.flag_terminate is False:
-            if end_date is None or digital_twin.day >= end_date:
+            if end_date is not None and digital_twin.day >= end_date:
                 digital_twin.flag_terminate = True
             parcel_operations = find_parcel_operations(digital_twin._locatedAtParcel)
             parcel_operation = get_parcel_operation_by_date(
