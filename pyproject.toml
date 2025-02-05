@@ -23,6 +23,7 @@ uvicorn = "^0.31.1"
 matplotlib = "^3.9.2"
 datetime = "^5.5"
 nlopt = "2.7.1"
+shapely = "2.0.7"
 
 [build-system]
 requires = ["poetry-core"]
