@@ -238,13 +238,16 @@ class ModelRerunner(object):
     parameter values.
     """
 
-    def __init__(self, params, wdp, agro, model_config, parameters_calibration, **kwargs):
+    def __init__(
+        self, params, wdp, agro, model_config, parameters_calibration, **kwargs
+    ):
         self.params = params
         self.wdp = wdp
         self.agro = agro
         self.model_config = model_config
         self.parameters_calibration = parameters_calibration
         self.parcel_operations = kwargs.get("parcel_operations", None)
+        self.end_date = kwargs.get("end_date", None)
 
     def update_cropcropmodel(self, par_values):
         if len(par_values) != len(self.parameters_calibration):
@@ -303,31 +306,30 @@ class ModelRerunner(object):
         if self.parcel_operations is None:
             action = fill_it_up(model_mod.get_output()[-1])
         else:
-            action = 0
-            # print(model_mod.day)
-            operations = self.parcel_operations
-            if not operations:
-                action = 0
-            elif operations:
-                action = get_parcel_operation_by_date(operations, model_mod.day)
+            parcel_operation = get_parcel_operation_by_date(
+                self.parcel_operations, model_mod.day
+            )
+            action = parcel_operation.quantity if parcel_operation else 0
 
-        if action > 0:
-            model_mod._send_signal(signal=pcse.signals.apply_n_snomin,
-                                   amount=action,
-                                   application_depth=10.,
-                                   cnratio=0.,
-                                   f_orgmat=0.,
-                                   f_NH4N=0.5,
-                                   f_NO3N=0.5,
-                                   initial_age=0,
-                                   )
+        if action is not None and action > 0:
+            model_mod._send_signal(
+                signal=pcse.signals.apply_n_snomin,
+                amount=action,
+                application_depth=10.0,
+                cnratio=0.0,
+                f_orgmat=0.0,
+                f_NH4N=0.5,
+                f_NO3N=0.5,
+                initial_age=0,
+            )
 
         # Rate calculation
         model_mod.calc_rates(model_mod.day, model_mod.drv)
 
+        if self.end_date is not None and model_mod.day >= self.end_date:
+            model_mod.flag_terminate = True
         if model_mod.flag_terminate is True:
             model_mod._terminate_simulation(model_mod.day)
-
         return model_mod
 
 
@@ -339,11 +341,25 @@ class ObjectiveFunctionCalculator(object):
     ."""
 
     def __init__(
-            self, params, wdp, agro, model_config, parameters_calibration, observations, **kwargs,
+        self,
+        params,
+        wdp,
+        agro,
+        model_config,
+        parameters_calibration,
+        observations,
+        **kwargs,
     ):
-        self.parcel_operations = kwargs.get('parcel_operations', None)
+        self.parcel_operations = kwargs.get("parcel_operations", None)
+        self.end_date = kwargs.get("end_date", None)
         self.modelrerunner = ModelRerunner(
-            params, wdp, agro, model_config, parameters_calibration, parcel_operations=self.parcel_operations,
+            params,
+            wdp,
+            agro,
+            model_config,
+            parameters_calibration,
+            parcel_operations=self.parcel_operations,
+            end_date=self.end_date,
         )
         self.df_observations = observations
         self.n_calls = 0
@@ -364,10 +380,21 @@ class ObjectiveFunctionCalculator(object):
         # display(df_differences[df_differences.DVS.notnull()].DVS)
         # With two features to assimilate, shall we do a weighted sum? Or do we not care if we prioritize DVS or LAI?
         # Now using simple addition
-        error_dvs = np.sqrt(np.mean(df_differences.DVS ** 2))
-        error_lai = np.sqrt(np.mean(df_differences.LAI ** 2))
+        # For DVS, calculate the error, ignoring NaN values
+        error_dvs = (
+            np.sqrt(np.mean(df_differences.DVS.dropna() ** 2))
+            if df_differences.DVS.notna().any()
+            else 0
+        )
 
-        obj_func = (error_dvs + error_lai)
+        # For LAI, calculate the error, ignoring NaN values
+        error_lai = (
+            np.sqrt(np.mean(df_differences.LAI.dropna() ** 2))
+            if df_differences.LAI.notna().any()
+            else 0
+        )
+
+        obj_func = error_dvs + error_lai
         # print(f'{par_values} {obj_func}')
         return obj_func
 
@@ -427,20 +454,20 @@ def get_dummy_lai_measurements() -> pd.DataFrame:
 
 
 def get_default_calibration_parameters():
-    return ["TSUM1", "TSUM2",  # "DLC", "DLO", "TSUMEM",
-            "TDWI", "SPAN"]
+    return ["TSUM1", "TSUM2", "TDWI", "SPAN"]  # "DLC", "DLO", "TSUMEM",
 
 
 def calibrate(
-        cropmodel: CropModel,
-        measurements: pd.DataFrame = get_dummy_measurements(),
-        parameters=get_default_calibration_parameters(),
+    cropmodel: CropModel,
+    measurements: pd.DataFrame = get_dummy_measurements(),
+    parameters=get_default_calibration_parameters(),
+    end_date=None,
 ):
     # DVS variables and sowing
     parameter_provider = cropmodel.parameterprovider
     weather_data_provider = cropmodel.weatherdataprovider
     agro_management = cropmodel._agromanagement
-    parcel_operations = find_parcel_operations(cropmodel._locatedAtParcel)
+    parcel_operations = find_parcel_operations(cropmodel._locatedAtParcel) or None
     model_config = cropmodel.mconf.model_config_file
     parameters_mod = {x: parameter_provider._cropdata[x] for x in parameters}
     lower_bounds = [i * 0.2 for i in parameters_mod.values()]
@@ -454,6 +481,7 @@ def calibrate(
         list(parameters_mod.keys()),
         measurements,
         parcel_operations=parcel_operations,
+        end_date=end_date,
     )
     x = optimize(
         objfunc_calculator, parameters_mod, lower_bounds, upper_bounds, initial_steps

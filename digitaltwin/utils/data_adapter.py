@@ -328,7 +328,6 @@ def fill_database_ascab():
                 (3.0961419, 42.1613676),
                 (3.0962492, 42.1625684),
                 (3.0928589, 42.1628388),
-
             ]
         ),
     )
@@ -349,9 +348,7 @@ def fill_database_ascab():
 
     for variable in ["detection_score", "detections"]:
         for pest in apple_pest:
-            device = create_device(
-                controlled_asset=pest.id, variable=f"obs-{variable}"
-            )
+            device = create_device(controlled_asset=pest.id, variable=f"obs-{variable}")
 
 
 def generate_rec_message_id(day: str, parcel_id: str):
