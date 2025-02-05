@@ -1,5 +1,6 @@
 import datetime
 from geojson import (
+    GeoJSON,
     Polygon,
     MultiLineString,
     Point,
@@ -7,8 +8,12 @@ from geojson import (
     Feature,
     FeatureCollection,
 )
+from shapely.geometry import (
+    shape,
+)
 from typing import Union, Optional, List
 
+from models.device import Device
 from ..cropmodel.crop_model import (
     get_default_variables,
     get_dummy_measurements,
@@ -206,16 +211,28 @@ def generate_feature_collections(
 def get_coordinates(
     parcel_loc: Union[FeatureCollection, agri_food_model.AgriParcel.location],
     feature_type: str = "MultiLineString",
-):
-    multi_line_string_coords = []
+) -> GeoJSON:
+    coordinates = []
     for feature in parcel_loc["features"]:
         if feature["geometry"]["type"] == feature_type:
             coords = feature["geometry"]["coordinates"]
-            multi_line_string_coords.append(coords)
-    return multi_line_string_coords
+            coordinates.append(coords)
+
+    #  ensure is GeoJSON type, hint: it is a dict with a keyword: 'type'.
+    return GeoJSON(coordinates=coordinates, type=feature_type)
 
 
-def map_pest_locations_to_id(
+def check_points_in_parcel(parcel_area: dict, detections: MultiPoint) -> bool:
+    """Check if detection points are inside the parcel area"""
+    # Convert GeoJSON Polygon and MultiPoint to Shapely objects
+    parcel_polygon = shape(parcel_area)  # Converts to Shapely Polygon
+    detection_points = shape(detections)  # Converts to Shapely MultiPoint
+
+    # Check if each point is inside the polygon
+    return all(parcel_polygon.contains(point) for point in detection_points.geoms)
+
+
+def map_pest_detections_to_device_id(
         pests: list[agri_food_model.AgriPest],
         pest_locations: dict[str, MultiPoint],
 ) -> dict:
@@ -227,17 +244,19 @@ def map_pest_locations_to_id(
 
 
 # TODO: WIP
-def map_pest_locations_to_parcel(
-        parcel: agri_food_model.AgriParcel,
-        pest_locations: dict[str, MultiPoint],
-) -> dict:
+def map_pest_detections_to_parcel(
+        parcel_area: GeoJSON,
+        pests: agri_food_model.AgriPest,
+        device: Device,
+        pest_detections: dict[str, MultiPoint],
+) -> Optional[MultiPoint]:
 
-    pest_map = {}
-    for pest, location in pest_locations.items():
-        if location in parcel.location.Polygon:
-            pest_map[pest] = location
-
-    return pest_map
+    for pest_str, detections in pest_detections.items():
+        for pest in pests:
+            if pest.description in pest_str and pest.id == device.controlledAsset:
+                #  checks if location is in the parcel bounds
+                if check_points_in_parcel(parcel_area, detections):
+                    return detections
 
 
 
@@ -250,14 +269,12 @@ def fill_database(variables: list[str] = get_default_variables()):
         multilinestring=(MultiLineString()),  # for rows
         polygon=Polygon(
             [
-                [
-                    (23.9100961, 55.126702),
-                    (23.9081435, 55.1224445),
-                    (23.914731, 55.1215733),
-                    (23.9158039, 55.1243586),
-                    (23.9135079, 55.1248494),
-                    (23.9100961, 55.126702),
-                ]
+                (23.9100961, 55.126702),
+                (23.9081435, 55.1224445),
+                (23.914731, 55.1215733),
+                (23.9158039, 55.1243586),
+                (23.9135079, 55.1248494),
+                (23.9100961, 55.126702),
             ]
         ),
     )
@@ -309,13 +326,12 @@ def fill_database_ascab():
         multilinestring=(MultiLineString()),  # for rows
         polygon=Polygon(
             [
-                [
-                    (3.0928589, 42.1628388),
-                    (3.0927731, 42.1615902),
-                    (3.0961419, 42.1613676),
-                    (3.0962492, 42.1625684),
-                    (3.0928589, 42.1628388),
-                ]
+                (3.0928589, 42.1628388),
+                (3.0927731, 42.1615902),
+                (3.0961419, 42.1613676),
+                (3.0962492, 42.1625684),
+                (3.0928589, 42.1628388),
+
             ]
         ),
     )
