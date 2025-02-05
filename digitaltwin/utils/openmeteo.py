@@ -4,6 +4,13 @@ import requests
 
 import datetime
 
+import openmeteo_requests
+from openmeteo_sdk.Variable import Variable
+from openmeteo_sdk.Aggregation import Aggregation
+
+import requests_cache
+from retry_requests import retry
+
 import pandas as pd
 import numpy as np
 
@@ -15,37 +22,6 @@ def format_date(d):
     if isinstance(d, (datetime.date, datetime)):
         return d.strftime('%Y-%m-%d')
     return d
-
-
-def fetch_open_meteo_weather(
-        latitude: float,
-        longitude: float,
-        start_date: Union[str, datetime.date],
-        end_date: Union[str, datetime.date],
-        timezone: str = 'UTC'):
-    """
-    Fetches daily weather data from Open-Meteo.
-
-    Parameters:
-        latitude (float): Latitude of the location.
-        longitude (float): Longitude of the location.
-        start_date (str): Start date in 'YYYY-MM-DD' format or datetime.date object
-        end_date (str): End date in 'YYYY-MM-DD' format or datetime.date object
-        timezone (str): Timezone identifier.
-
-    Returns:
-        dict: Parsed JSON weather data.
-    """
-    url = "https://api.open-meteo.com/v1/forecast"
-    params = {
-        "latitude": latitude,
-        "longitude": longitude,
-        "start_date": format_date(start_date),
-        "end_date": format_date(end_date),
-        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,shortwave_radiation_sum",
-        "hourly": "windspeed_10m,dewpoint_2m",
-        "timezone": timezone
-    }
 
     response = requests.get(url, params=params)
     response.raise_for_status()  # will raise an error if the request failed
@@ -68,8 +44,8 @@ def prepare_weather_dataframe(weather_data):
     daily = weather_data.get('daily', {})
     df_daily = pd.DataFrame(daily)
     # Convert the 'time' column to datetime objects and set as index
-    df_daily['time'] = pd.to_datetime(df_daily['time'])
-    df_daily.set_index('time', inplace=True)
+    # df_daily['time'] = pd.to_datetime(df_daily['time'])
+    df_daily.set_index('date', inplace=True)
 
     # Rename daily columns for clarity
     df_daily.rename(columns={
@@ -83,24 +59,22 @@ def prepare_weather_dataframe(weather_data):
     hourly = weather_data.get('hourly', {})
     df_hourly = pd.DataFrame(hourly)
     # Convert hourly time to datetime objects
-    df_hourly['time'] = pd.to_datetime(df_hourly['time'])
+    df_hourly['date'] = pd.to_datetime(df_hourly['date'])
     # Set time as the DataFrame index
-    df_hourly.set_index('time', inplace=True)
+    df_hourly.set_index('date', inplace=True)
 
     # Compute daily averages from hourly data:
     df_hourly_daily = df_hourly.groupby(df_hourly.index.date).mean()
     # Convert the index back to datetime
     df_hourly_daily.index = pd.to_datetime(df_hourly_daily.index)
     df_hourly_daily.rename(columns={
+        'temperature_2m': 'TEMP',
         'windspeed_10m': 'WIND',
         'dewpoint_2m': 'dewpoint'
     }, inplace=True)
 
     # Merge on the date index (inner join to keep only days that exist in both)
     df_merged = pd.merge(df_daily, df_hourly_daily, left_index=True, right_index=True, how='inner')
-
-    # Compute average temperature (tavg) as the mean of tmin and tmax.
-    df_merged['TEMP'] = (df_merged['TMIN'] + df_merged['TMAX']) / 2.0
 
     # Convert irradiation from MJ/m²/day to W/m²/day.
     df_merged['IRRAD'] = df_merged['IRRAD'] * 1e6
@@ -109,8 +83,8 @@ def prepare_weather_dataframe(weather_data):
     df_merged['RAIN'] = df_merged['RAIN'] * 0.1
 
     # Calculate vapor pressure (in hPa) from dewpoint (°C) using the formula:
-    # e = 6.112 * exp((17.67 * T_d) / (T_d + 243.5))
-    df_merged['VAP'] = 6.112 * np.exp((17.67 * df_merged['dewpoint']) / (df_merged['dewpoint'] + 243.5))
+    # e = 6.108 * exp((17.27 * T_d) / (T_d + 237.3))
+    df_merged['VAP'] = (6.108 * np.exp((17.27 * df_merged['dewpoint']) / (df_merged['dewpoint'] + 237.3)))
 
     df_merged.drop(columns=['dewpoint'], inplace=True)
 
@@ -121,6 +95,56 @@ def prepare_weather_dataframe(weather_data):
     return df_merged
 
 
+def extract_weather_data(response, params) -> dict:
+    """
+    Extracts daily and hourly weather data from the response object.
+
+    Returns a dictionary with two keys, "daily" and "hourly", each of which is a dict.
+    The expected keys for daily are:
+        - "time"
+        - "temperature_2m_min"
+        - "temperature_2m_max"
+        - "precipitation_sum"
+        - "shortwave_radiation_sum"
+    The expected keys for hourly are:
+        - "time"
+        - "temperature_2m"
+        - "windspeed_10m"
+        - "dewpoint_2m"
+
+    Adjust the method names as required by your client.
+    """
+    # Extract daily data
+    daily = response.Daily()
+    daily_data = {
+        "date": pd.date_range(
+            start=pd.to_datetime(daily.Time(), unit="s", utc=True),
+            end=pd.to_datetime(daily.TimeEnd(), unit="s", utc=True),
+            freq=pd.Timedelta(seconds=daily.Interval()),
+            inclusive="left",
+        ),
+    }
+    daily_data["date"] = daily_data["date"].date
+
+    for i, name in enumerate(params["daily"]):
+        daily_data[name] = daily.Variables(i).ValuesAsNumpy()
+
+    # Extract hourly data.
+    hourly = response.Hourly()
+    hourly_data = {
+        "date": pd.date_range(
+            start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
+            end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True),
+            freq=pd.Timedelta(seconds=hourly.Interval()),
+            inclusive="left",
+        ),
+    }
+    for i, name in enumerate(params["hourly"]):
+        hourly_data[name] = hourly.Variables(i).ValuesAsNumpy()
+    return {"daily": daily_data, "hourly": hourly_data}
+
+
+
 class OpenMeteoWeatherProvider:
     """
     A weather provider that only needs a location (latitude and longitude)
@@ -128,26 +152,49 @@ class OpenMeteoWeatherProvider:
     it fetches and returns the corresponding weather data.
     """
 
+    cache_session = requests_cache.CachedSession(".cache", expire_after=-1)
+    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+    openmeteo = openmeteo_requests.Client(session=retry_session)
+
     def __init__(
             self,
             latitude: float,
             longitude: float,
-            timezone: str ='UTC',
-            elevation: float = 0.0):
+            timezone: str ='UTC'):
         self.latitude = latitude
         self.longitude = longitude
         self.timezone = timezone
-        self.elevation = elevation  # in m
 
     def _fetch_data(self, start_date, end_date):
         """
         Internal method to fetch and prepare weather data for a given date range.
         Returns a DataFrame indexed by date.
         """
-        raw_data = fetch_open_meteo_weather(self.latitude, self.longitude,
-                                            start_date, end_date,
-                                            self.timezone)
+        url = "https://previous-runs-api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "start_date": format_date(start_date),
+            "end_date": format_date(end_date),
+            "daily": ["temperature_2m_max","temperature_2m_min","precipitation_sum","shortwave_radiation_sum"],
+            "hourly": ["temperature_2m","windspeed_10m","dewpoint_2m"],
+            "timezone": self.timezone,
+            "models": "bom_access_global",
+        }
+
+        # Use the client that has caching and retry support.
+        response = OpenMeteoWeatherProvider.openmeteo.weather_api(url=url, params=params)
+        # response = requests.get(url, params=params)
+        # TODO: add loop for multiple locations. Now we have one.
+        weather_api_object = response[0]
+
+        raw_data = extract_weather_data(weather_api_object, params)
+
         df = prepare_weather_dataframe(raw_data)
+
+        df['LAT'] = weather_api_object.Latitude()
+        df['LON'] = weather_api_object.Longitude()
+        df['ELEV'] = weather_api_object.Elevation()
         return df
 
     def __call__(self, target_date, end_date=None):
