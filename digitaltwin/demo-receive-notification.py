@@ -1,6 +1,8 @@
 import os
 
 from digitaltwin.utils.simulator import run_cropmodel
+from digitaltwin.utils.data_adapter import fill_database
+from digitaltwin.utils.database import clear_database
 
 from fastapi import FastAPI, Request
 from ngsildclient import SubscriptionBuilder
@@ -9,19 +11,20 @@ from sd_data_adapter.client import DAClient
 app = FastAPI()
 
 # Host and Port are injected as environment variables
-ORION_HOST = os.environ['ORION_HOST']
-ORION_PORT = os.environ['ORION_PORT']
+ORION_HOST = os.environ["ORION_HOST"]
+ORION_PORT = os.environ["ORION_PORT"]
 
 client = DAClient.get_instance(host=ORION_HOST, port=ORION_PORT)
 
 
-# We need a new 
+# We need a new
 @app.post("/manual-sim")
 async def receive_notification(request: Request, debug=False):
     # TODO: @michiel @hilmy
     # This is a new endpoint which can react to manually triggered user simulations
     # We need to define what is needed as input. Maybe just the parcel ID (or crop ID)?
     pass
+
 
 @app.post("/notification")
 async def receive_notification(request: Request, debug=False):
@@ -40,13 +43,17 @@ async def receive_notification(request: Request, debug=False):
 
 
 def subscribe_to_ocb(host):
-    MY_SERVER_URL = f'http://{host}:8000/notification'
+    MY_SERVER_URL = f"http://{host}:8000/notification"
 
-    subscr = SubscriptionBuilder(MY_SERVER_URL)\
-        .context('https://raw.githubusercontent.com/smart-data-models/dataModel.AgriFood/master/context.jsonld')\
-        .description("Notification for new AgriParcelOperations.")\
-        .select_type("AgriParcelOperation")\
+    subscr = (
+        SubscriptionBuilder(MY_SERVER_URL)
+        .context(
+            "https://raw.githubusercontent.com/smart-data-models/dataModel.AgriFood/master/context.jsonld"
+        )
+        .description("Notification for new AgriParcelOperations.")
+        .select_type("AgriParcelOperation")
         .build()
+    )
 
     try:
         client.subscriptions.create(subscr)
@@ -59,8 +66,11 @@ if __name__ == "__main__":
     my_host = os.environ["DIGITAL_TWIN_HOST"]
     subscribe_to_ocb(my_host)
 
+    clear_database()
+    fill_database()
+
     # TODO: @hilmy @michiel Create a CRON job to run every morning and run the simulation
 
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
 
+    uvicorn.run(app, host="0.0.0.0", port=8000)
