@@ -12,8 +12,6 @@ from shapely.geometry import (
     shape,
 )
 from typing import Union, Optional, List
-
-from models.device import Device
 from ..cropmodel.crop_model import (
     get_default_variables,
     get_dummy_measurements,
@@ -233,8 +231,8 @@ def check_points_in_parcel(parcel_area: dict, detections: MultiPoint) -> bool:
 
 
 def map_pest_detections_to_device_id(
-        pests: list[agri_food_model.AgriPest],
-        pest_locations: dict[str, MultiPoint],
+    pests: list[agri_food_model.AgriPest],
+    pest_locations: dict[str, MultiPoint],
 ) -> dict:
     pest_map = {}
     for pest in pests:
@@ -244,10 +242,10 @@ def map_pest_detections_to_device_id(
 
 
 def map_pest_detections_to_parcel(
-        parcel_area: GeoJSON,
-        pests: agri_food_model.AgriPest,
-        device: Device,
-        pest_detections: dict[str, MultiPoint],
+    parcel_area: GeoJSON,
+    pests: agri_food_model.AgriPest,
+    device: device_model.Device,
+    pest_detections: dict[str, MultiPoint],
 ) -> Optional[MultiPoint]:
 
     for pest_str, detections in pest_detections.items():
@@ -256,7 +254,6 @@ def map_pest_detections_to_parcel(
                 #  checks if location is in the parcel bounds
                 if check_points_in_parcel(parcel_area, detections):
                     return detections
-
 
 
 def fill_database(variables: list[str] = get_default_variables()):
