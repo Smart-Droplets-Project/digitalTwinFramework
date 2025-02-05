@@ -51,8 +51,8 @@ def get_locations_of_detections_ascab() -> MultiPoint:
 
 def get_locations_of_detections_apple_alternaria() -> MultiPoint:
     coordinates_detections = [
-        (3.0936112, 42.1623702),
-        (3.0945098, 42.1620982),
+        (3.0956322, 42.1615223),
+        (3.0935098, 42.1622142),
     ]
     multi_point = MultiPoint(coordinates_detections)
     return multi_point
