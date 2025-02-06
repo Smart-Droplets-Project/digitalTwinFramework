@@ -264,7 +264,7 @@ def fill_database(variables: list[str] = get_default_variables()):
     wheat_crop = create_crop("wheat", pest=[wheat_pest])
     soil = create_agrisoil()
     geo_feature_collection = generate_feature_collections(
-        point=Point((52.0, 5.5)),  # for weather data (latitude, longitude)
+        point=Point((55.12, 23.91)),  # for weather data (latitude, longitude)
         multilinestring=(MultiLineString()),  # for rows
         polygon=Polygon(
             [
