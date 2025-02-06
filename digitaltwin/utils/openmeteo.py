@@ -21,6 +21,8 @@ list_forecast_models = [
     'bom_access_global',  # global, 0.15deg
     'cmc_gem_gdps',  # global, 0.125deg
     'jma_gsm',  # global, 0.5deg
+    'dwd_icon',  #  global, 11km
+    'dwd_icon_eu',  # europe, 7km
     'ecmwf_aifs025',  # global, 0.25deg
     'knmi_harmonie_arome_europe',  # europe, 2.5km
     'meteofrance_arpege_world025',  # global 0.25deg
@@ -78,7 +80,7 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
             latitude: float,
             longitude: float,
             timezone: str = 'UTC',
-            openmeteo_model: str = 'bom_access_global',
+            openmeteo_model: str = 'jma_gsm',
             start_date: Union[str, datetime.date] = None,
             ETmodel: str = "PM",
             force_update: bool = False,
@@ -151,7 +153,7 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
         Internal method to fetch and prepare weather data for a given date range.
         Returns a DataFrame indexed by date.
         """
-        url = "https://previous-runs-api.open-meteo.com/v1/forecast"
+        url = self._get_url(previous_runs=True)
         params = {
             "latitude": self.latitude,
             "longitude": self.longitude,
@@ -400,11 +402,22 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
         return {"daily": daily_data, "hourly": hourly_data}
 
 
+    def _get_url(self, previous_runs: bool = True) -> str:
+        if self.model in list_forecast_models and previous_runs is True:
+            return "https://previous-runs-api.open-meteo.com/v1/forecast"
+        elif self.model in list_forecast_models and previous_runs is False:
+            return "https://api.open-meteo.com/v1/forecast"
+        elif self.model in list_historical_models:
+            return "https://api.open-meteo.com/v1/archive"
+        else:
+            raise ValueError("Model not found. Check model availability.")
+
+
 if __name__ == '__main__':
     # Example of grabbing weather from Wageningen
     omwp = OpenMeteoWeatherProvider(51.98, 5.65)
 
     # Get weather for a single day.
-    single_date = datetime.date(2025, 2, 3)
+    single_date = datetime.date(2025, 1, 15)
     weather_single = omwp(single_date)
     print(f"Weather on {single_date}:", weather_single)
