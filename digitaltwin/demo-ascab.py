@@ -1,14 +1,17 @@
 import argparse
+import datetime
 
 from sd_data_adapter.client import DAClient
-from sd_data_adapter.api import search
+from sd_data_adapter.api import search, upsert
 from sd_data_adapter.models import AgriFood
+import sd_data_adapter.models.device as device_model
 
 from digitaltwin.utils.data_adapter import (
     fill_database_ascab,
     create_device_measurement,
     create_command_message,
     generate_rec_message_id,
+    create_geojson_from_feature_collection,
     get_recommendation_message,
 )
 from digitaltwin.utils.database import (
@@ -35,14 +38,25 @@ def main():
     fill_database_ascab()
 
     parcels = search(get_demo_parcels("Serrater"), ctx=AgriFood.ctx)
-    print(f"parcels: {parcels}")
-
     digital_twins = create_digital_twins(parcels)
 
     # run digital twins
     for digital_twin in digital_twins:
         devices = find_device(digital_twin._isAgriCrop)
-        device_dict = {device.controlledProperty: device for device in devices}
+
+        sim_dict = {
+            device.controlledProperty: (
+                device,
+                device_model.DeviceMeasurement(
+                    refDevice=device.id,
+                    controlledProperty=device.controlledProperty,
+                    dateCreated=datetime.datetime.now().isoformat() + "T00:00:00Z",
+                    dataProvider="digital-twin-simulator",
+                ),
+            )
+            for device in devices
+            if device.controlledProperty.startswith("sim-")
+        }
 
         terminated = False
         digital_twin.reset()
@@ -51,13 +65,14 @@ def main():
             _, _, terminated, _, _ = digital_twin.step(action)
 
             info = digital_twin.get_wrapper_attr("info")
-            for variable, device in device_dict.items():
-                if info[variable] is not None:
-                    create_device_measurement(
-                        device=device,
-                        date_observed=info["Date"][-1].isoformat() + "T00:00:00Z",
-                        value=info[variable][-1],
+            for variable, (device, device_measurement) in sim_dict.items():
+                stripped_variable = variable.split("-", 1)[1]
+                if info[stripped_variable] is not None:
+                    device_measurement.numValue = info[stripped_variable][-1]
+                    device_measurement.dateObserved = (
+                        info["Date"][-1].isoformat() + "T00:00:00Z"
                     )
+                    upsert(device_measurement)
             recommendation = minimize_risk(info)
 
             # create command message
@@ -79,7 +94,9 @@ def main():
                     message_id=command_message_id,
                     command=recommendation_message,
                     command_time=info["Date"][-1].isoformat(),
-                    waypoints=get_row_coordinates(parcel.location),
+                    waypoints=create_geojson_from_feature_collection(
+                        parcel.location, target_rate_value=recommendation
+                    ),
                 )
 
         # get output

@@ -33,7 +33,7 @@ class AscabModel(AScabEnv):
             f"AscabModel for {self._isAgriPest}, "
             f"located at parcel: {self._locatedAtParcel}, "
             f"agri crop: {self._isAgriCrop}, "
-            f"location: {self.location}, dates: {self.dates}, "
+            f"dates: {self.dates}, "
         )
 
 
