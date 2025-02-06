@@ -10,7 +10,6 @@ from digitaltwin.utils.data_adapter import (
     create_command_message,
     generate_rec_message_id,
     get_recommendation_message,
-    get_row_coordinates,
 )
 from digitaltwin.utils.database import (
     clear_database,

@@ -1,6 +1,11 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+import datetime
+
 from sd_data_adapter.api import search, upsert
 from sd_data_adapter.models import AgriFood
 import sd_data_adapter.models.device as device_model
+from sd_data_adapter.models.agri_food.agriParcel import AgriParcel
 
 from digitaltwin.cropmodel.crop_model import (
     create_digital_twins,
@@ -32,15 +37,17 @@ from digitaltwin.cropmodel.crop_model import (
     get_titles,
     calibrate,
 )
-import matplotlib.pyplot as plt
-import pandas as pd
-import datetime
 
 
 def run_cropmodel(
-    calibrate_flag=True, debug=False, end_date=None, use_cropgym_agent=True
+    parcels: list[AgriParcel] = None,
+    calibrate_flag=True,
+    debug=False,
+    end_date=None,
+    use_cropgym_agent=True,
 ):
-    parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
+    if parcels is None:
+        parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
     digital_twins = create_digital_twins(parcels)
     cropgym_agents = create_cropgym_agents(parcels, digital_twins)
     fertilizer_object = find_agriproducttype(name="Nitrogen")[0]

@@ -13,7 +13,10 @@ from sd_data_adapter.api import get_by_id
 from sd_data_adapter.models.smartDataModel import Relationship
 from .agromanagement import AgroManagement
 from digitaltwin.cropmodel.recommendation import fill_it_up, CropgymAgent
-from digitaltwin.utils.database import find_parcel_operations, get_parcel_operation_by_date
+from digitaltwin.utils.database import (
+    find_parcel_operations,
+    get_parcel_operation_by_date,
+)
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
