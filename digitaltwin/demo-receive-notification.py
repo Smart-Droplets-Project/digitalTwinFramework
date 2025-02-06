@@ -1,11 +1,14 @@
 import os
 import datetime
 import uvicorn
+import json
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request
 from ngsildclient import SubscriptionBuilder
 
 from sd_data_adapter.client import DAClient
+from sd_data_adapter.api import search
+from sd_data_adapter.models import AgriFood
 from digitaltwin.utils.simulator import run_cropmodel
 from digitaltwin.utils.data_adapter import fill_database
 from digitaltwin.utils.database import clear_database
@@ -30,9 +33,20 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(daily_run, "cron", hour=0, minute=0)
 
 
-def get_parcel_id_from_request(request: Request):
-    result = None
+def get_crop_id_from_request(request: Request):
+    # for now: just pick crop_id from database
+    crops = search({"type": "AgriCrop", "q": f'description=="wheat"'}, ctx=AgriFood.ctx)
+    result = crops[0].id
     return result
+
+
+def get_parcel_id_from_request(request: Request):
+    crop_id = get_crop_id_from_request(request)
+    crop_id_str = json.dumps(crop_id)
+    parcels = search(
+        {"type": "AgriParcel", "q": f"hasAgriCrop=={crop_id_str}"}, ctx=AgriFood.ctx
+    )
+    return parcels
 
 
 @app.post("/manual-sim")
@@ -44,8 +58,8 @@ async def receive_notification(request: Request, debug=False):
         notification = await request.json()
         print("Received notification:")
         print(notification)
-        parcel_id = get_parcel_id_from_request(request)
-        run_cropmodel(parcels=parcel_id, debug=False)
+        parcels = get_parcel_id_from_request(request)
+        run_cropmodel(parcels=parcels, debug=False)
         return {"status": "received"}
     except Exception as e:
         print(f"Error processing request: {e}")
