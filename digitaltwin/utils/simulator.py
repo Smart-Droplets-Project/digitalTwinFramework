@@ -29,6 +29,7 @@ from digitaltwin.utils.database import (
     find_agriproducttype,
     find_command_messages,
     get_parcel_operation_by_date,
+    get_matching_device,
 )
 from digitaltwin.utils.helpers import get_weather, get_simulated_days
 
@@ -43,7 +44,7 @@ def run_cropmodel(
     parcels: list[AgriParcel] = None,
     calibrate_flag=True,
     debug=False,
-    end_date=None,
+    end_date: datetime.date = None,
     use_cropgym_agent=True,
 ):
     if parcels is None:
@@ -62,25 +63,23 @@ def run_cropmodel(
             device.controlledProperty: (
                 device,
                 device_model.DeviceMeasurement(
-                    refDevice=device.id, controlledProperty=device.controlledProperty
+                    refDevice=device.id,
+                    controlledProperty=device.controlledProperty,
+                    dateCreated=datetime.datetime.now().isoformat() + "T00:00:00Z",
+                    dataProvider="digital-twin-simulator",
                 ),
             )
             for device in devices
             if device.controlledProperty.startswith("sim-")
         }
-
-        device_measurements = find_device_measurement()
-        dvs_measurements = [
-            measurement
-            for measurement in device_measurements
-            if measurement.controlledProperty == "obs-DVS"
-        ]
-
-        lai_measurements = [
-            measurement
-            for measurement in device_measurements
-            if measurement.controlledProperty == "obs-LAI"
-        ]
+        device_obs_dvs = get_matching_device(devices, "obs-DVS")
+        dvs_measurements = find_device_measurement(
+            controlled_property="obs-DVS", ref_device=device_obs_dvs.id
+        )
+        device_obs_lai = get_matching_device(devices, "obs-LAI")
+        lai_measurements = find_device_measurement(
+            controlled_property="obs-LAI", ref_device=device_obs_lai.id
+        )
 
         if calibrate_flag:
             data_dvs = [
@@ -97,7 +96,7 @@ def run_cropmodel(
             df_assimilate["day"] = pd.to_datetime(df_assimilate["day"])
             df_assimilate = df_assimilate.set_index("day")
             min_date = df_assimilate.index.min().date()
-            if end_date and end_date > min_date:
+            if end_date is None or end_date and end_date > min_date:
                 calibrate(digital_twin, df_assimilate, end_date=end_date)
 
         # run crop model
@@ -109,25 +108,23 @@ def run_cropmodel(
                 parcel_operations, digital_twin.day
             )
             action = parcel_operation.quantity if parcel_operation else 0
-            store_simulations = digital_twin.day == end_date
-            ask_recommendation = digital_twin.day == end_date
-
             digital_twin.run(1, action)
+            ask_recommendation = (
+                digital_twin.day == end_date if end_date is not None else True
+            )
 
             dates = get_simulated_days(digital_twin.get_output())
 
-            # store simulations
-            if store_simulations:
-                for variable, (device, device_measurement) in sim_dict.items():
-                    stripped_variable = variable.split("-", 1)[1]
-                    if digital_twin.get_output()[-1][stripped_variable] is not None:
-                        device_measurement.numValue = digital_twin.get_output()[-1][
-                            stripped_variable
-                        ]
-                        device_measurement.dateObserved = (
-                            digital_twin.day.isoformat() + "T00:00:00Z"
-                        )
-                        upsert(device_measurement)
+            for variable, (device, device_measurement) in sim_dict.items():
+                stripped_variable = variable.split("-", 1)[1]
+                if digital_twin.get_output()[-1][stripped_variable] is not None:
+                    device_measurement.numValue = digital_twin.get_output()[-1][
+                        stripped_variable
+                    ]
+                    device_measurement.dateObserved = (
+                        digital_twin.day.isoformat() + "T00:00:00Z"
+                    )
+                    upsert(device_measurement)
 
             # get AI recommendation
             if ask_recommendation:
