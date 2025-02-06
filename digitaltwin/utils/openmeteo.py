@@ -5,28 +5,36 @@ import requests
 import datetime
 
 import openmeteo_requests
-from openmeteo_sdk.Variable import Variable
-from openmeteo_sdk.Aggregation import Aggregation
 
 import requests_cache
 from retry_requests import retry
 
 import pandas as pd
 import numpy as np
+from math import log10
 
-def format_date(d):
+def format_date(date: Union[str, datetime.date]):
     """
     Converts a date or datetime object to a string in 'YYYY-MM-DD' format.
     If d is already a string, it is returned unchanged.
     """
-    if isinstance(d, (datetime.date, datetime)):
-        return d.strftime('%Y-%m-%d')
-    return d
+    if isinstance(date, (datetime.date, datetime)):
+        return date.strftime('%Y-%m-%d')
+    return date
 
     response = requests.get(url, params=params)
     response.raise_for_status()  # will raise an error if the request failed
     data = response.json()
     return data
+
+
+def wind10to2(wind10):
+    """Converts windspeed at 10m to windspeed at 2m using log. wind profile
+        Code taken from PCSE
+    """
+    wind2 = wind10 * (log10(2./0.033) / log10(10/0.033))
+    return wind2
+
 
 
 def prepare_weather_dataframe(weather_data):
@@ -81,6 +89,9 @@ def prepare_weather_dataframe(weather_data):
 
     # Convert precipitation from mm/day to cm/day.
     df_merged['RAIN'] = df_merged['RAIN'] * 0.1
+
+    # Convert wind from 10m to 2m
+    df_merged['WIND'] = wind10to2(df_merged['WIND'])
 
     # Calculate vapor pressure (in hPa) from dewpoint (°C) using the formula:
     # e = 6.108 * exp((17.27 * T_d) / (T_d + 237.3))
