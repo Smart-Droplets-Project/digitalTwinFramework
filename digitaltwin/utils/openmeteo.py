@@ -1,5 +1,6 @@
 import os
 import datetime
+from datetime import timedelta
 
 from typing import Union
 
@@ -48,8 +49,9 @@ def wind10to2(wind10):
     """Converts windspeed at 10m to windspeed at 2m using log. wind profile
         Code taken from PCSE
     """
-    wind2 = wind10 * (log10(2./0.033) / log10(10/0.033))
+    wind2 = wind10 * (log10(2. / 0.033) / log10(10 / 0.033))
     return wind2
+
 
 class OpenMeteoWeatherProvider(WeatherDataProvider):
     """
@@ -75,8 +77,8 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
             self,
             latitude: float,
             longitude: float,
-            timezone: str ='UTC',
-            openmeteo_model: str ='bom_access_global',
+            timezone: str = 'UTC',
+            openmeteo_model: str = 'bom_access_global',
             start_date: Union[str, datetime.date] = None,
             ETmodel: str = "PM",
             force_update: bool = False,
@@ -86,8 +88,10 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
         self.model = openmeteo_model
         self.ETmodel = ETmodel
         self.start_date = start_date
-        if self.start_date is None:
-            self.start_date = datetime.date(2021, 1, 1)
+        if self.start_date is None and self.model in list_forecast_models:
+            self.start_date = datetime.date.today() - timedelta(days=32)
+        elif self.start_date is None and self.model in list_historical_models:
+            self.start_date = datetime.date(1960, 1, 1)
 
         if latitude < -90 or latitude > 90:
             msg = "Latitude should be between -90 and 90 degrees."
@@ -101,7 +105,6 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
         self.timezone = timezone
 
         self._check_cache(force_update)
-
 
     def _check_cache(self, force_update: bool = False):
         # Check for existence of a cache file
@@ -166,6 +169,8 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
         # TODO: add loop for multiple locations. Now we have one.
         weather_api_object = response[0]
 
+        self.elevation = weather_api_object.Elevation()
+
         raw_data = self._extract_weather_data(weather_api_object, params)
 
         df = self._prepare_weather_dataframe(raw_data)
@@ -196,8 +201,8 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
         """
 
         fname = "%s_LAT%05i_LON%05i_%s.cache" % (self.__class__.__name__,
-                                              int(latitude*10), int(longitude*10),
-                                              self.model[:5])
+                                                 int(latitude * 10), int(longitude * 10),
+                                                 self.model[:5])
         cache_filename = os.path.join(settings.METEO_CACHE_DIR, fname)
         return cache_filename
 
@@ -300,20 +305,49 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
 
         df_merged['DAY'] = df_merged.index.date
 
-        E0, ES0, ET0 = reference_ET(df_merged["DAY"], df_merged["LAT"], df_merged["ELEV"], df_merged["TMIN"],
-                                    df_merged["TMAX"], df_merged["IRRAD"],
-                                    df_merged["VAP"], df_merged["WIND"], self.angstA, self.angstB, self.ETmodel)
-
-        #  convert to cm/day
-        df_merged["E0"] = E0/10.
-        df_merged["ES0"] = ES0/10.
-        df_merged["ET0"] = ET0/10.
-
         df_merged['LAT'] = self.latitude
         df_merged['LON'] = self.longitude
         df_merged['ELEV'] = self.elevation
 
-        df_merged = df_merged[['TMIN', 'TMAX', 'TEMP', 'IRRAD', 'RAIN', 'WIND', 'VAP', 'DAY', 'LAT', 'LON', 'ELEV', 'E0', 'ES0', 'ET0']]
+        df_merged = df_merged[['TMIN', 'TMAX', 'TEMP', 'IRRAD', 'RAIN', 'WIND', 'VAP', 'DAY', 'LAT', 'LON', 'ELEV']]
+
+        E0_list = []
+        ES0_list = []
+        ET0_list = []
+
+        for row in df_merged.itertuples():
+            E0, ES0, ET0 = reference_ET(row.DAY, row.LAT, row.ELEV, row.TMIN,
+                                        row.TMAX, row.IRRAD,
+                                        row.VAP, row.WIND,
+                                        self.angstA, self.angstB, self.ETmodel)
+
+            #  convert to cm/day
+            E0_list.append(E0 / 10.)
+            ES0_list.append(ES0 / 10.)
+            ET0_list.append(ET0 / 10.)
+
+        df_merged["E0"] = E0_list
+        df_merged["ES0"] = ES0_list
+        df_merged["ET0"] = ET0_list
+
+        df_merged = df_merged[
+            [
+                'TMIN',
+                'TMAX',
+                'TEMP',
+                'IRRAD',
+                'RAIN',
+                'WIND',
+                'VAP',
+                'DAY',
+                'LAT',
+                'LON',
+                'ELEV',
+                'E0',
+                'ES0',
+                'ET0'
+            ]
+        ]
 
         return df_merged
 
@@ -374,11 +408,3 @@ if __name__ == '__main__':
     single_date = datetime.date(2025, 2, 3)
     weather_single = omwp(single_date)
     print(f"Weather on {single_date}:", weather_single)
-
-    # Get weather for a date range.
-    start = datetime.date(2025, 2, 1)
-    end = datetime.date(2025, 2, 10)
-    weather_range = omwp(start, end)
-    print("Weather for the period:")
-    for d, data in weather_range.items():
-        print(f"{d}: {data}")
