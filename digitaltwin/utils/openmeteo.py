@@ -47,29 +47,30 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
     #  Comments show coverage and spatial resolution
     #  TODO: make dict of model name and earliest start date
     dict_forecast_models = {
-        'arpae_cosmo_5m': datetime.date(2024, 2, 1),  # europe, 5m
-        'bom_access_global': datetime.date(2024, 1, 18),  # global, 0.15deg
-        'cmc_gem_gdps': datetime.date(2022, 11, 23),  # global, 0.15deg
+        'arpae_cosmo_5m': datetime.date(2024, 2, 2),  # europe, 5m
+        'bom_access_global': datetime.date(2024, 1, 19),  # global, 0.15deg
+        'gem_seamless': datetime.date(2022, 11, 24),  # global, 0.15deg
         'jma_gsm': datetime.date(2016, 1, 1),  # global, 0.5deg
-        'dwd_icon': datetime.date(2022, 11, 24),  # global, 11km
-        'dwd_icon_eu': datetime.date(2022, 11, 24),  # europe, 7km
-        'ecmwf_aifs025': datetime.date(2024, 2, 3),  # global, 0.25deg
-        'knmi_harmonie_arome_europe': datetime.date(2024, 7, 1),  # europe, 2.5km
-        'meteofrance_arpege_world025': datetime.date(2024, 1, 2),  # global 0.25deg
-        'ncep_gfs013': datetime.date(2021, 3, 23),  # global 0.11deg
-        'ukmo_global_deterministic_10km': datetime.date(2022, 3, 1),  # global, 0.09deg/10km
+        'icon_seamless': datetime.date(2022, 11, 25),  # global, 11km
+        'ecmwf_ifs025': datetime.date(2024, 2, 4),  # global, 0.25deg
+        'knmi_seamless': datetime.date(2024, 7, 2),  # europe, 2.5km
+        'meteofrance_seamless': datetime.date(2024, 1, 3),  # global 0.25deg
+        'gfs_seamless': datetime.date(2021, 3, 24),  # global 0.11deg
+        'ukmo_seamless': datetime.date(2022, 3, 2),  # global, 0.09deg/10km
     }
 
     dict_historical_models = {
-        'copernicus_era5': datetime.date(1941, 1, 1),  # global, 0.25deg
-        'copernicus_era5_land': datetime.date(1951, 1, 1),  # global, 0.1deg
+        'era5': datetime.date(1941, 1, 1),  # global, 0.25deg
+        'era5_land': datetime.date(1951, 1, 1),  # global, 0.1deg
         'ecmwf_ifs': datetime.date(2017, 1, 1),  # global, 9km
+        'cerra': datetime.date(1986, 1, 1),  # global, 5km
     }
 
     delay_historical_models = {
-        'copernicus_era5': 5,  # global, 0.25deg
-        'copernicus_era5_land': 5,  # global, 0.1deg
-        'ecmwf_ifs': 2,
+        'era5': 5,  # global, 0.25deg
+        'era5_land': 5,  # global, 0.1deg
+        'ecmwf_ifs': 2, # global, 9km
+        'cerra': 0,
     }
 
     def __init__(
@@ -77,7 +78,7 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
             latitude: float,
             longitude: float,
             timezone: str = 'UTC',
-            openmeteo_model: str = 'bom_access_global',
+            openmeteo_model: str = 'gfs_seamless',
             start_date: Union[str, datetime.date] = None,
             ETmodel: str = "PM",
             force_update: bool = False,
@@ -399,13 +400,13 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
         return {"daily": daily_data, "hourly": hourly_data}
 
 
-    def _get_url(self, previous_runs: bool = True) -> str:
+    def _get_url(self, previous_runs: bool = False) -> str:
         if self.model in self.dict_forecast_models and previous_runs is True:
             return "https://previous-runs-api.open-meteo.com/v1/forecast"
         elif self.model in self.dict_forecast_models and previous_runs is False:
             return "https://api.open-meteo.com/v1/forecast"
         elif self.model in self.dict_historical_models:
-            return "https://api.open-meteo.com/v1/archive"
+            return "https://archive-api.open-meteo.com/v1/archive"
         else:
             raise ValueError("Model not found. Check model availability.")
 
