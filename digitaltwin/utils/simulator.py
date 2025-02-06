@@ -131,11 +131,13 @@ def run_cropmodel(
                 if use_cropgym_agent is False or not cropgym_agent:
                     recommendation = fill_it_up(digital_twin.get_output()[-1])
                 else:
-                    week_weather = get_weather(dates, weather_provider)
-                    recommendation = cropgym_agent(
-                        digital_twin.get_output(),
-                        week_weather,
-                    )
+                    recommendation = 0
+                    if digital_twin.day.weekday() == 1:
+                        week_weather = get_weather(dates, weather_provider)
+                        recommendation = 10.0 * cropgym_agent(
+                            digital_twin.get_output(),
+                            week_weather,
+                        )
 
                 # create command message
                 if recommendation > 0:
