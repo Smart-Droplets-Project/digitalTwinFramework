@@ -1,6 +1,5 @@
 import os
 import datetime
-from datetime import timedelta
 
 from typing import Union
 
@@ -9,32 +8,9 @@ import numpy as np
 from math import log10
 
 from pcse.base import WeatherDataProvider, WeatherDataContainer
-from pcse.util import ea_from_tdew, reference_ET, check_angstromAB
+from pcse.util import ea_from_tdew, reference_ET, check_angstromAB, wind10to2
 from pcse.exceptions import PCSEError
 from pcse.settings import settings
-
-#  List of forecast and historical weather models for OpenMeteo
-#  Comments show coverage and spatial resolution
-#  TODO: make dict of model name and earliest start date
-list_forecast_models = [
-    'arpae_cosmo_5m',  # europe, 5m
-    'bom_access_global',  # global, 0.15deg
-    'cmc_gem_gdps',  # global, 0.125deg
-    'jma_gsm',  # global, 0.5deg
-    'dwd_icon',  #  global, 11km
-    'dwd_icon_eu',  # europe, 7km
-    'ecmwf_aifs025',  # global, 0.25deg
-    'knmi_harmonie_arome_europe',  # europe, 2.5km
-    'meteofrance_arpege_world025',  # global 0.25deg
-    'ncep_gfs013',  # global 0.11deg
-    'ukmo_global_deterministic_10km',  # global, 0.09deg/10km
-]
-
-list_historical_models = [
-    'copernicus_era5',  # global, 0.25deg
-    'copernicus_era5_land'  # global, 0.1deg
-    'ecmwf_ifs',  # global, 9km
-]
 
 
 def format_date(date: Union[str, datetime.date]):
@@ -45,14 +21,6 @@ def format_date(date: Union[str, datetime.date]):
     if isinstance(date, (datetime.date, datetime)):
         return date.strftime('%Y-%m-%d')
     return date
-
-
-def wind10to2(wind10):
-    """Converts windspeed at 10m to windspeed at 2m using log. wind profile
-        Code taken from PCSE
-    """
-    wind2 = wind10 * (log10(2. / 0.033) / log10(10 / 0.033))
-    return wind2
 
 
 class OpenMeteoWeatherProvider(WeatherDataProvider):
@@ -75,12 +43,41 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
     angstA = 0.29
     angstB = 0.49
 
+    #  List of forecast and historical weather models for OpenMeteo
+    #  Comments show coverage and spatial resolution
+    #  TODO: make dict of model name and earliest start date
+    dict_forecast_models = {
+        'arpae_cosmo_5m': datetime.date(2024, 2, 1),  # europe, 5m
+        'bom_access_global': datetime.date(2024, 1, 18),  # global, 0.15deg
+        'cmc_gem_gdps': datetime.date(2022, 11, 23),  # global, 0.15deg
+        'jma_gsm': datetime.date(2016, 1, 1),  # global, 0.5deg
+        'dwd_icon': datetime.date(2022, 11, 24),  # global, 11km
+        'dwd_icon_eu': datetime.date(2022, 11, 24),  # europe, 7km
+        'ecmwf_aifs025': datetime.date(2024, 2, 3),  # global, 0.25deg
+        'knmi_harmonie_arome_europe': datetime.date(2024, 7, 1),  # europe, 2.5km
+        'meteofrance_arpege_world025': datetime.date(2024, 1, 2),  # global 0.25deg
+        'ncep_gfs013': datetime.date(2021, 3, 23),  # global 0.11deg
+        'ukmo_global_deterministic_10km': datetime.date(2022, 3, 1),  # global, 0.09deg/10km
+    }
+
+    dict_historical_models = {
+        'copernicus_era5': datetime.date(1941, 1, 1),  # global, 0.25deg
+        'copernicus_era5_land': datetime.date(1951, 1, 1),  # global, 0.1deg
+        'ecmwf_ifs': datetime.date(2017, 1, 1),  # global, 9km
+    }
+
+    delay_historical_models = {
+        'copernicus_era5': 5,  # global, 0.25deg
+        'copernicus_era5_land': 5,  # global, 0.1deg
+        'ecmwf_ifs': 2,
+    }
+
     def __init__(
             self,
             latitude: float,
             longitude: float,
             timezone: str = 'UTC',
-            openmeteo_model: str = 'jma_gsm',
+            openmeteo_model: str = 'bom_access_global',
             start_date: Union[str, datetime.date] = None,
             ETmodel: str = "PM",
             force_update: bool = False,
@@ -90,10 +87,10 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
         self.model = openmeteo_model
         self.ETmodel = ETmodel
         self.start_date = start_date
-        if self.start_date is None and self.model in list_forecast_models:
-            self.start_date = datetime.date.today() - timedelta(days=32)
-        elif self.start_date is None and self.model in list_historical_models:
-            self.start_date = datetime.date(1960, 1, 1)
+        if self.start_date is None and self.model in self.dict_forecast_models:
+            self.start_date = self.dict_forecast_models[self.model]
+        elif self.start_date is None and self.model in self.dict_historical_models:
+            self.start_date = self.dict_historical_models[self.model]
 
         if latitude < -90 or latitude > 90:
             msg = "Latitude should be between -90 and 90 degrees."
@@ -158,7 +155,7 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
             "latitude": self.latitude,
             "longitude": self.longitude,
             "start_date": format_date(start_date),
-            "end_date": format_date(datetime.date.today()),
+            "end_date": format_date(self._get_end_date()),
             "daily": self.daily_variables,
             "hourly": self.hourly_variables,
             "timezone": self.timezone,
@@ -403,12 +400,21 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
 
 
     def _get_url(self, previous_runs: bool = True) -> str:
-        if self.model in list_forecast_models and previous_runs is True:
+        if self.model in self.dict_forecast_models and previous_runs is True:
             return "https://previous-runs-api.open-meteo.com/v1/forecast"
-        elif self.model in list_forecast_models and previous_runs is False:
+        elif self.model in self.dict_forecast_models and previous_runs is False:
             return "https://api.open-meteo.com/v1/forecast"
-        elif self.model in list_historical_models:
+        elif self.model in self.dict_historical_models:
             return "https://api.open-meteo.com/v1/archive"
+        else:
+            raise ValueError("Model not found. Check model availability.")
+
+
+    def _get_end_date(self):
+        if self.model in self.dict_forecast_models:
+            return datetime.date.today() + datetime.timedelta(days=7)
+        elif self.model in self.dict_historical_models:
+            return datetime.date.today() - datetime.timedelta(days=self.delay_historical_models[self.model])
         else:
             raise ValueError("Model not found. Check model availability.")
 
@@ -418,6 +424,6 @@ if __name__ == '__main__':
     omwp = OpenMeteoWeatherProvider(51.98, 5.65)
 
     # Get weather for a single day.
-    single_date = datetime.date(2025, 1, 15)
+    single_date = datetime.date(2024, 5, 15)
     weather_single = omwp(single_date)
     print(f"Weather on {single_date}:", weather_single)
