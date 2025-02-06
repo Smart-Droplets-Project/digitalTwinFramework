@@ -12,8 +12,6 @@ from shapely.geometry import (
     shape,
 )
 from typing import Union, Optional, List
-
-from models.device import Device
 from ..cropmodel.crop_model import (
     get_default_variables,
     get_dummy_measurements,
@@ -233,8 +231,8 @@ def check_points_in_parcel(parcel_area: dict, detections: MultiPoint) -> bool:
 
 
 def map_pest_detections_to_device_id(
-        pests: list[agri_food_model.AgriPest],
-        pest_locations: dict[str, MultiPoint],
+    pests: list[agri_food_model.AgriPest],
+    pest_locations: dict[str, MultiPoint],
 ) -> dict:
     pest_map = {}
     for pest in pests:
@@ -244,10 +242,10 @@ def map_pest_detections_to_device_id(
 
 
 def map_pest_detections_to_parcel(
-        parcel_area: GeoJSON,
-        pests: agri_food_model.AgriPest,
-        device: Device,
-        pest_detections: dict[str, MultiPoint],
+    parcel_area: GeoJSON,
+    pests: agri_food_model.AgriPest,
+    device: device_model.Device,
+    pest_detections: dict[str, MultiPoint],
 ) -> Optional[MultiPoint]:
 
     for pest_str, detections in pest_detections.items():
@@ -258,11 +256,11 @@ def map_pest_detections_to_parcel(
                     return detections
 
 
-
 def fill_database(variables: list[str] = get_default_variables()):
     wheat_pest = create_agripest(description="alternaria")
     wheat_crop = create_crop("wheat", pest=[wheat_pest])
     soil = create_agrisoil()
+    fertilizer = create_fertilizer()
     geo_feature_collection = generate_feature_collections(
         point=Point((55.12, 23.91)),  # for weather data (latitude, longitude)
         multilinestring=(MultiLineString()),  # for rows
@@ -330,7 +328,6 @@ def fill_database_ascab():
                 (3.0961419, 42.1613676),
                 (3.0962492, 42.1625684),
                 (3.0928589, 42.1628388),
-
             ]
         ),
     )
@@ -351,9 +348,7 @@ def fill_database_ascab():
 
     for variable in ["detection_score", "detections"]:
         for pest in apple_pest:
-            device = create_device(
-                controlled_asset=pest.id, variable=f"obs-{variable}"
-            )
+            device = create_device(controlled_asset=pest.id, variable=f"obs-{variable}")
 
 
 def generate_rec_message_id(day: str, parcel_id: str):
