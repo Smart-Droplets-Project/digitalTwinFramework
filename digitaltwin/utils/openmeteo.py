@@ -5,10 +5,9 @@ from typing import Union
 
 import pandas as pd
 import numpy as np
-from math import log10
 
 from pcse.base import WeatherDataProvider, WeatherDataContainer
-from pcse.util import ea_from_tdew, reference_ET, check_angstromAB, wind10to2
+from pcse.util import reference_ET, wind10to2
 from pcse.exceptions import PCSEError
 from pcse.settings import settings
 
@@ -19,7 +18,7 @@ def format_date(date: Union[str, datetime.date]):
     If d is already a string, it is returned unchanged.
     """
     if isinstance(date, (datetime.date, datetime)):
-        return date.strftime('%Y-%m-%d')
+        return date.strftime("%Y-%m-%d")
     return date
 
 
@@ -29,6 +28,7 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
     at initialization. When you call it with a single date or a date range,
     it fetches and returns the corresponding weather data.
     """
+
     import openmeteo_requests
     import requests_cache
     from retry_requests import retry
@@ -37,7 +37,12 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
     retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
     openmeteo = openmeteo_requests.Client(session=retry_session)
 
-    daily_variables = ["temperature_2m_max", "temperature_2m_min", "precipitation_sum", "shortwave_radiation_sum"]
+    daily_variables = [
+        "temperature_2m_max",
+        "temperature_2m_min",
+        "precipitation_sum",
+        "shortwave_radiation_sum",
+    ]
     hourly_variables = ["temperature_2m", "windspeed_10m", "dewpoint_2m"]
 
     angstA = 0.29
@@ -47,41 +52,41 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
     #  Comments show coverage and spatial resolution
     #  TODO: make dict of model name and earliest start date
     dict_forecast_models = {
-        'arpae_cosmo_5m': datetime.date(2024, 2, 2),  # europe, 5m
-        'bom_access_global': datetime.date(2024, 1, 19),  # global, 0.15deg
-        'gem_seamless': datetime.date(2022, 11, 24),  # global, 0.15deg
-        'jma_gsm': datetime.date(2016, 1, 1),  # global, 0.5deg
-        'icon_seamless': datetime.date(2022, 11, 25),  # global, 11km
-        'ecmwf_ifs025': datetime.date(2024, 2, 4),  # global, 0.25deg
-        'knmi_seamless': datetime.date(2024, 7, 2),  # europe, 2.5km
-        'meteofrance_seamless': datetime.date(2024, 1, 3),  # global 0.25deg
-        'gfs_seamless': datetime.date(2021, 3, 24),  # global 0.11deg
-        'ukmo_seamless': datetime.date(2022, 3, 2),  # global, 0.09deg/10km
+        "arpae_cosmo_5m": datetime.date(2024, 2, 2),  # europe, 5m
+        "bom_access_global": datetime.date(2024, 1, 19),  # global, 0.15deg
+        "gem_seamless": datetime.date(2022, 11, 24),  # global, 0.15deg
+        "jma_gsm": datetime.date(2016, 1, 1),  # global, 0.5deg
+        "icon_seamless": datetime.date(2022, 11, 25),  # global, 11km
+        "ecmwf_ifs025": datetime.date(2024, 2, 4),  # global, 0.25deg
+        "knmi_seamless": datetime.date(2024, 7, 2),  # europe, 2.5km
+        "meteofrance_seamless": datetime.date(2024, 1, 3),  # global 0.25deg
+        "gfs_seamless": datetime.date(2021, 3, 24),  # global 0.11deg
+        "ukmo_seamless": datetime.date(2022, 3, 2),  # global, 0.09deg/10km
     }
 
     dict_historical_models = {
-        'era5': datetime.date(1941, 1, 1),  # global, 0.25deg
-        'era5_land': datetime.date(1951, 1, 1),  # global, 0.1deg
-        'ecmwf_ifs': datetime.date(2017, 1, 1),  # global, 9km
-        'cerra': datetime.date(1986, 1, 1),  # global, 5km
+        "era5": datetime.date(1941, 1, 1),  # global, 0.25deg
+        "era5_land": datetime.date(1951, 1, 1),  # global, 0.1deg
+        "ecmwf_ifs": datetime.date(2017, 1, 1),  # global, 9km
+        "cerra": datetime.date(1986, 1, 1),  # global, 5km
     }
 
     delay_historical_models = {
-        'era5': 5,  # global, 0.25deg
-        'era5_land': 5,  # global, 0.1deg
-        'ecmwf_ifs': 2, # global, 9km
-        'cerra': 0,
+        "era5": 5,  # global, 0.25deg
+        "era5_land": 5,  # global, 0.1deg
+        "ecmwf_ifs": 2,  # global, 9km
+        "cerra": 0,
     }
 
     def __init__(
-            self,
-            latitude: float,
-            longitude: float,
-            timezone: str = 'UTC',
-            openmeteo_model: str = 'gfs_seamless',
-            start_date: Union[str, datetime.date] = None,
-            ETmodel: str = "PM",
-            force_update: bool = False,
+        self,
+        latitude: float,
+        longitude: float,
+        timezone: str = "UTC",
+        openmeteo_model: str = "gfs_seamless",
+        start_date: Union[str, datetime.date] = None,
+        ETmodel: str = "PM",
+        force_update: bool = False,
     ):
         WeatherDataProvider.__init__(self)
 
