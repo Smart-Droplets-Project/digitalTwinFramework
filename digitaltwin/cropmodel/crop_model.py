@@ -473,8 +473,8 @@ def calibrate(
     parcel_operations = find_parcel_operations(cropmodel._locatedAtParcel) or None
     model_config = cropmodel.mconf.model_config_file
     parameters_mod = {x: parameter_provider._cropdata[x] for x in parameters}
-    lower_bounds = [i * 0.2 for i in parameters_mod.values()]
-    upper_bounds = [i * 1.2 for i in parameters_mod.values()]
+    lower_bounds = [i * 0.5 for i in parameters_mod.values()]
+    upper_bounds = [i * 1.5 for i in parameters_mod.values()]
     initial_steps = [i * 0.1 for i in parameters_mod.values()]
     objfunc_calculator = ObjectiveFunctionCalculator(
         parameter_provider,
