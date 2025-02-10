@@ -1,5 +1,6 @@
 import datetime
 import time
+import json
 
 from sd_data_adapter.client import DAClient
 from sd_data_adapter.models import AgriFood, Devices, AutonomousMobileRobot
@@ -29,11 +30,19 @@ def find_device(crop_id: str):
     )
 
 
-def find_device_measurement():
-    return search(
-        {"type": "DeviceMeasurement"},
-        ctx=Devices.ctx,
-    )
+def find_device_measurement(controlled_property: str = None, ref_device: str = None):
+    query = {"type": "DeviceMeasurement"}
+    conditions = []
+
+    if controlled_property:
+        conditions.append(f'controlledProperty=="{controlled_property}"')
+    if ref_device:
+        ref_device_str = json.dumps(ref_device)
+        conditions.append(f"refDevice=={ref_device_str}")
+
+    if conditions:
+        query["q"] = ";".join(conditions)
+    return search(query, ctx=Devices.ctx)
 
 
 def find_command_messages():

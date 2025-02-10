@@ -13,7 +13,10 @@ from sd_data_adapter.api import get_by_id
 from sd_data_adapter.models.smartDataModel import Relationship
 from .agromanagement import AgroManagement
 from digitaltwin.cropmodel.recommendation import fill_it_up, CropgymAgent
-from digitaltwin.utils.database import find_parcel_operations, get_parcel_operation_by_date
+from digitaltwin.utils.database import (
+    find_parcel_operations,
+    get_parcel_operation_by_date,
+)
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
@@ -470,8 +473,8 @@ def calibrate(
     parcel_operations = find_parcel_operations(cropmodel._locatedAtParcel) or None
     model_config = cropmodel.mconf.model_config_file
     parameters_mod = {x: parameter_provider._cropdata[x] for x in parameters}
-    lower_bounds = [i * 0.2 for i in parameters_mod.values()]
-    upper_bounds = [i * 1.2 for i in parameters_mod.values()]
+    lower_bounds = [i * 0.5 for i in parameters_mod.values()]
+    upper_bounds = [i * 1.5 for i in parameters_mod.values()]
     initial_steps = [i * 0.1 for i in parameters_mod.values()]
     objfunc_calculator = ObjectiveFunctionCalculator(
         parameter_provider,

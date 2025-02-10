@@ -1,12 +1,18 @@
 import os
+import datetime
+import uvicorn
+import json
+from apscheduler.schedulers.background import BackgroundScheduler
+from fastapi import FastAPI, Request
+from ngsildclient import SubscriptionBuilder
 
+from sd_data_adapter.client import DAClient
+from sd_data_adapter.api import search
+from sd_data_adapter.models import AgriFood
 from digitaltwin.utils.simulator import run_cropmodel
 from digitaltwin.utils.data_adapter import fill_database
 from digitaltwin.utils.database import clear_database
 
-from fastapi import FastAPI, Request
-from ngsildclient import SubscriptionBuilder
-from sd_data_adapter.client import DAClient
 
 app = FastAPI()
 
@@ -17,13 +23,47 @@ ORION_PORT = os.environ["ORION_PORT"]
 client = DAClient.get_instance(host=ORION_HOST, port=ORION_PORT)
 
 
-# We need a new
+def daily_run():
+    current_day = datetime.date.today()
+    run_cropmodel(end_date=current_day)
+
+
+# Set up APScheduler to run daily at midnight
+scheduler = BackgroundScheduler()
+scheduler.add_job(daily_run, "cron", hour=0, minute=0)
+
+
+def get_crop_id_from_request(request: Request):
+    # for now: just pick crop_id from database
+    crops = search({"type": "AgriCrop", "q": f'description=="wheat"'}, ctx=AgriFood.ctx)
+    result = crops[0].id
+    return result
+
+
+def get_parcel_id_from_request(request: Request):
+    crop_id = get_crop_id_from_request(request)
+    crop_id_str = json.dumps(crop_id)
+    parcels = search(
+        {"type": "AgriParcel", "q": f"hasAgriCrop=={crop_id_str}"}, ctx=AgriFood.ctx
+    )
+    return parcels
+
+
 @app.post("/manual-sim")
 async def receive_notification(request: Request, debug=False):
-    # TODO: @michiel @hilmy
-    # This is a new endpoint which can react to manually triggered user simulations
-    # We need to define what is needed as input. Maybe just the parcel ID (or crop ID)?
-    pass
+    if debug:
+        headers = request.headers
+        print(f"Received headers: {headers}")
+    try:
+        notification = await request.json()
+        print("Received notification:")
+        print(notification)
+        parcels = get_parcel_id_from_request(request)
+        run_cropmodel(parcels=parcels, debug=False)
+        return {"status": "received"}
+    except Exception as e:
+        print(f"Error processing request: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 @app.post("/notification")
@@ -69,8 +109,7 @@ if __name__ == "__main__":
     clear_database()
     fill_database()
 
-    # TODO: @hilmy @michiel Create a CRON job to run every morning and run the simulation
-
-    import uvicorn
+    # Start the scheduler to run daily crop simulations
+    scheduler.start()
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
