@@ -12,11 +12,13 @@ import sd_data_adapter.models.agri_food as agri_food_model
 from sd_data_adapter.api import get_by_id
 from sd_data_adapter.models.smartDataModel import Relationship
 from .agromanagement import AgroManagement
+
 from digitaltwin.cropmodel.recommendation import fill_it_up, CropgymAgent
 from digitaltwin.utils.database import (
     find_parcel_operations,
     get_parcel_operation_by_date,
 )
+from digitaltwin.utils.openmeteo import OpenMeteoWeatherProvider
 
 SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 CONFIGS_DIR = os.path.join(SRC_DIR, "configs")
@@ -120,7 +122,12 @@ def get_agro_config(
 
 def get_weather_provider(
         parcel: agri_food_model.AgriParcel,
-) -> pcse.input.NASAPowerWeatherDataProvider:
+        provider: str = "openmeteo",
+) -> pcse.base.WeatherDataProvider:
+    """
+    returns either NASA Power or OpenMeteo weather provider,
+    by inputting "nasapower" or "openmeteo", respectively.
+    """
     location = None
     for feature in parcel.location["features"]:
         if (
@@ -128,7 +135,10 @@ def get_weather_provider(
                 and feature["geometry"]["type"] == "Point"
         ):
             location = feature["geometry"]["coordinates"]
-    return pcse.input.NASAPowerWeatherDataProvider(*location)
+    if provider == "openmeteo":
+        return OpenMeteoWeatherProvider(*location)
+    elif provider == "nasapower":
+        return pcse.input.NASAPowerWeatherDataProvider(*location)
 
 
 def get_crop_and_variety_name(crop: agri_food_model.AgriCrop):
