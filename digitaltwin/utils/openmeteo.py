@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 
 from pcse.base import WeatherDataProvider, WeatherDataContainer
-from pcse.util import reference_ET, wind10to2
+from pcse.util import reference_ET, wind10to2, check_angstromAB
 from pcse.exceptions import PCSEError
 from pcse.settings import settings
 
@@ -50,7 +50,6 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
 
     #  List of forecast and historical weather models for OpenMeteo
     #  Comments show coverage and spatial resolution
-    #  TODO: make dict of model name and earliest start date
     dict_forecast_models = {
         "arpae_cosmo_5m": datetime.date(2024, 2, 2),  # europe, 5m
         "bom_access_global": datetime.date(2024, 1, 19),  # global, 0.15deg
@@ -201,8 +200,8 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
         """Constructs the filename used for cache files given latitude and longitude
 
         The latitude and longitude is coded into the filename by truncating on
-        0.1 degree. So the cache filename for a point with lat/lon 52.56/-124.78 will be:
-        OpenMeteoWeatherDataProvider_LAT00525_LON-1247.cache
+        0.1 degree. So the cache filename for a point with lat/lon 52.56/-124.78 and using the
+        "knmi_seamless" model will be: OpenMeteoWeatherDataProvider_LAT00525_LON-1247_knmi_.cache
         """
 
         fname = "%s_LAT%05i_LON%05i_%s.cache" % (self.__class__.__name__,
@@ -291,36 +290,38 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
         }, inplace=True)
 
         # Merge on the date index (inner join to keep only days that exist in both)
-        df_merged = pd.merge(df_daily, df_hourly_daily, left_index=True, right_index=True, how='inner')
+        df_openmeteo = pd.merge(df_daily, df_hourly_daily, left_index=True, right_index=True, how='inner')
 
         # Convert irradiation from MJ/m²/day to W/m²/day.
-        df_merged['IRRAD'] = df_merged['IRRAD'] * 1e6
+        df_openmeteo['IRRAD'] = df_openmeteo['IRRAD'] * 1e6
 
         # Convert precipitation from mm/day to cm/day.
-        df_merged['RAIN'] = df_merged['RAIN'] * 0.1
+        df_openmeteo['RAIN'] = df_openmeteo['RAIN'] * 0.1
 
         # Convert wind from 10m to 2m
-        df_merged['WIND'] = wind10to2(df_merged['WIND'])
+        df_openmeteo['WIND'] = wind10to2(df_openmeteo['WIND'])
 
         # Calculate vapor pressure (in hPa) from dewpoint (°C) using the formula:
         # e = 6.108 * exp((17.27 * T_d) / (T_d + 237.3))
-        df_merged['VAP'] = (6.108 * np.exp((17.27 * df_merged['dewpoint']) / (df_merged['dewpoint'] + 237.3)))
+        df_openmeteo['VAP'] = (6.108 * np.exp((17.27 * df_openmeteo['dewpoint']) / (df_openmeteo['dewpoint'] + 237.3)))
 
-        df_merged.drop(columns=['dewpoint'], inplace=True)
+        df_openmeteo.drop(columns=['dewpoint'], inplace=True)
 
-        df_merged['DAY'] = df_merged.index.date
+        df_openmeteo['DAY'] = df_openmeteo.index.date
 
-        df_merged['LAT'] = self.latitude
-        df_merged['LON'] = self.longitude
-        df_merged['ELEV'] = self.elevation
+        df_openmeteo['LAT'] = self.latitude
+        df_openmeteo['LON'] = self.longitude
+        df_openmeteo['ELEV'] = self.elevation
 
-        df_merged = df_merged[['TMIN', 'TMAX', 'TEMP', 'IRRAD', 'RAIN', 'WIND', 'VAP', 'DAY', 'LAT', 'LON', 'ELEV']]
+        self.angstA, self.angstB = self._estimate_AngstAB(df_openmeteo)
+
+        df_openmeteo = df_openmeteo[['TMIN', 'TMAX', 'TEMP', 'IRRAD', 'RAIN', 'WIND', 'VAP', 'DAY', 'LAT', 'LON', 'ELEV']]
 
         E0_list = []
         ES0_list = []
         ET0_list = []
 
-        for row in df_merged.itertuples():
+        for row in df_openmeteo.itertuples():
             E0, ES0, ET0 = reference_ET(row.DAY, row.LAT, row.ELEV, row.TMIN,
                                         row.TMAX, row.IRRAD,
                                         row.VAP, row.WIND,
@@ -331,11 +332,14 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
             ES0_list.append(ES0 / 10.)
             ET0_list.append(ET0 / 10.)
 
-        df_merged["E0"] = E0_list
-        df_merged["ES0"] = ES0_list
-        df_merged["ET0"] = ET0_list
+        # Some warning about copying a slice
+        df_openmeteo = df_openmeteo.copy()
 
-        df_merged = df_merged[
+        df_openmeteo.loc[:, "E0"] = E0_list
+        df_openmeteo.loc[:, "ES0"] = ES0_list
+        df_openmeteo.loc[:, "ET0"] = ET0_list
+
+        df_openmeteo = df_openmeteo[
             [
                 'TMIN',
                 'TMAX',
@@ -354,7 +358,84 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
             ]
         ]
 
-        return df_merged
+        return df_openmeteo
+
+    def calculate_toa_radiation(self, day_of_year):
+        """Calculate daily Top-of-Atmosphere shortwave radiation"""
+        G_sc = 1361  # Solar constant (W/m²)
+
+        # Earth-Sun distance correction factor
+        d_r = 1 + 0.033 * np.cos(2 * np.pi * day_of_year / 365)
+
+        # Solar declination (radians)
+        delta = np.radians(23.45 * np.sin(2 * np.pi * (day_of_year - 81) / 365))
+
+        # Convert latitude to radians
+        phi = np.radians(self.latitude)
+
+        # Sunset hour angle
+        h_s = np.arccos(-np.tan(phi) * np.tan(delta))
+
+        # Updated TOA daily radiation (H0)
+        H0 = (24 * 3600 / np.pi) * G_sc * d_r * (
+                np.cos(phi) * np.cos(delta) * np.sin(h_s) + (h_s * np.sin(phi) * np.sin(delta))
+        )
+
+        # Convert from J/m²/day to MJ/m²/day
+        H0 = H0 / 1e6
+
+        return H0
+
+    def _estimate_AngstAB(self, df):
+        """Determine Angstrom A/B parameters from Top-of-Atmosphere (ALLSKY_TOA_SW_DWN) and
+        top-of-Canopy (ALLSKY_SFC_SW_DWN) radiation values.
+
+        :param df: dataframe with Openmeteo data
+        :return: tuple of Angstrom A/B values
+
+        The Angstrom A/B parameters are determined by dividing swv_dwn by toa_dwn
+        and taking the 0.05 percentile for Angstrom A and the 0.98 percentile for
+        Angstrom A+B: toa_dwn*(A+B) approaches the upper envelope while
+        toa_dwn*A approaches the lower envelope of the records of swv_dwn
+        values.
+
+        From PCSE's NASA POWER implementation
+        """
+
+        msg = "Start estimation of Angstrom A/B values from Open Meteo data."
+        self.logger.debug(msg)
+
+        # check if sufficient data is available to make a reasonable estimate:
+        # We want to have at least 200 days available
+        if len(df) < 200:
+            msg = ("Less then 200 days of data available. Reverting to " +
+                   "default Angstrom A/B coefficients (%f, %f)")
+            self.logger.warn(msg % (self.angstA, self.angstB))
+            return self.angstA, self.angstB
+
+        # calculate relative radiation (swv_dwn/toa_dwn) and percentiles
+        doys = pd.to_datetime(df.DAY).dt.dayofyear
+        irrad = df.IRRAD.values
+        irrad_conv = irrad / 1e6
+        relative_radiation = (df.IRRAD/1e6)/self.calculate_toa_radiation(doys)
+        ix = relative_radiation.notnull()
+        angstrom_a = float(np.percentile(relative_radiation[ix].values, 5))
+        angstrom_ab = float(np.percentile(relative_radiation[ix].values, 98))
+        angstrom_b = angstrom_ab - angstrom_a
+
+        try:
+            check_angstromAB(angstrom_a, angstrom_b)
+        except PCSEError as e:
+            msg = ("Angstrom A/B values (%f, %f) outside valid range: %s. " +
+                   "Reverting to default values.")
+            msg = msg % (angstrom_a, angstrom_b, e)
+            self.logger.warn(msg)
+            return self.angstA, self.angstB
+
+        msg = "Angstrom A/B values estimated: (%f, %f)." % (angstrom_a, angstrom_b)
+        self.logger.debug(msg)
+
+        return angstrom_a, angstrom_b
 
     def _extract_weather_data(self, response, params) -> dict:
         """
