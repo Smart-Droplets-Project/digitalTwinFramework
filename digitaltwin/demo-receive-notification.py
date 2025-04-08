@@ -25,7 +25,7 @@ client = DAClient.get_instance(host=ORION_HOST, port=ORION_PORT)
 
 def daily_run():
     current_day = datetime.date.today()
-    run_cropmodel(end_date=current_day)
+    run_cropmodel(end_date=current_day, debug=True)
 
 
 # Set up APScheduler to run daily at midnight
@@ -55,9 +55,6 @@ async def receive_notification(request: Request, debug=False):
         headers = request.headers
         print(f"Received headers: {headers}")
     try:
-        notification = await request.json()
-        print("Received notification:")
-        print(notification)
         parcels = get_parcel_id_from_request(request)
         run_cropmodel(parcels=parcels, debug=False)
         return {"status": "received"}
@@ -72,9 +69,6 @@ async def receive_notification(request: Request, debug=False):
         headers = request.headers
         print(f"Received headers: {headers}")
     try:
-        notification = await request.json()
-        print("Received notification:")
-        print(notification)
         run_cropmodel(debug=False)
         return {"status": "received"}
     except Exception as e:
@@ -108,6 +102,9 @@ if __name__ == "__main__":
 
     clear_database()
     fill_database()
+
+    # start a simulation when the script starts
+    daily_run()
 
     # Start the scheduler to run daily crop simulations
     scheduler.start()

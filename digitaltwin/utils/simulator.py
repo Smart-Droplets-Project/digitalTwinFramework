@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import datetime
+import tempfile
+import os
 
 from sd_data_adapter.api import search, upsert
 from sd_data_adapter.models import AgriFood
@@ -214,4 +216,7 @@ def run_cropmodel(
                     ]
                 )
             fig.autofmt_xdate()
+            today = datetime.datetime.today().strftime("%Y-%m-%d")
+            filename = os.path.join(tempfile.gettempdir(), f"model_output_{today}.png")
+            plt.savefig(filename, dpi=300)
             plt.show()

@@ -262,21 +262,34 @@ def fill_database(variables: list[str] = get_default_variables()):
     soil = create_agrisoil()
     fertilizer = create_fertilizer()
     geo_feature_collection = generate_feature_collections(
-        point=Point((55.12, 23.91)),  # for weather data (latitude, longitude)
+        point=Point((55.75, 23.58)),  # for weather data (latitude, longitude)
         multilinestring=(MultiLineString()),  # for rows
         polygon=Polygon(
             [
-                (23.9100961, 55.126702),
-                (23.9081435, 55.1224445),
-                (23.914731, 55.1215733),
-                (23.9158039, 55.1243586),
-                (23.9135079, 55.1248494),
-                (23.9100961, 55.126702),
+                (23.5789776, 55.7585147),
+                (23.5788918, 55.7537815),
+                (23.5705662, 55.7528155),
+                (23.5705662, 55.7518494),
+                (23.5770035, 55.7501104),
+                (23.5817242, 55.7479849),
+                (23.5830116, 55.7461491),
+                (23.5867023, 55.7450863),
+                (23.5938263, 55.7445065),
+                (23.5927105, 55.7462458),
+                (23.5882473, 55.7459076),
+                (23.5877323, 55.7479366),
+                (23.5923672, 55.7483714),
+                (23.5921097, 55.7503036),
+                (23.5875607, 55.7501104),
+                (23.5857582, 55.7559550),
+                (23.5876465, 55.7561482),
+                (23.5835266, 55.7589977),
+                (23.5789776, 55.7585147),
             ]
         ),
     )
     parcel = create_parcel(
-        location=geo_feature_collection, area_parcel=20, crop=wheat_crop, soil=soil
+        location=geo_feature_collection, area_parcel=90, crop=wheat_crop, soil=soil
     )
 
     for variable in ["detection_score", "detections"]:
@@ -334,7 +347,7 @@ def fill_database_ascab():
 
     parcel = create_parcel(
         location=geo_feature_collection,
-        area_parcel=20,
+        area_parcel=130,
         crop=apple_crop,
         name="Apple Orchard",
         address="Carrer Major, 1, 17143 Jafre, Girona, Spain",
