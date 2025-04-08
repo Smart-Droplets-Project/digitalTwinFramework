@@ -45,9 +45,6 @@ class OpenMeteoWeatherProvider(WeatherDataProvider):
     ]
     hourly_variables = ["temperature_2m", "windspeed_10m", "dewpoint_2m"]
 
-    angstA = 0.29
-    angstB = 0.49
-
     #  List of forecast and historical weather models for OpenMeteo
     #  Comments show coverage and spatial resolution
     dict_forecast_models = {
