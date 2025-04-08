@@ -121,8 +121,8 @@ def get_agro_config(
 
 
 def get_weather_provider(
-        parcel: agri_food_model.AgriParcel,
-        provider: str = "openmeteo",
+    parcel: agri_food_model.AgriParcel,
+    provider: str = "nasapower",
 ) -> pcse.base.WeatherDataProvider:
     """
     returns either NASA Power or OpenMeteo weather provider,
@@ -131,8 +131,8 @@ def get_weather_provider(
     location = None
     for feature in parcel.location["features"]:
         if (
-                feature["properties"]["name"] == "weather location"
-                and feature["geometry"]["type"] == "Point"
+            feature["properties"]["name"] == "weather location"
+            and feature["geometry"]["type"] == "Point"
         ):
             location = feature["geometry"]["coordinates"]
     if provider == "openmeteo":
