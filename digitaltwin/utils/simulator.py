@@ -59,7 +59,7 @@ def run_cropmodel(
     for digital_twin, cropgym_agent in zip(digital_twins, cropgym_agents):
         devices = find_device(digital_twin._isAgriCrop)
         parcel = get_by_id(digital_twin._locatedAtParcel, ctx=AgriFood.ctx)
-        weather_provider = get_weather_provider(parcel, provider="nasapower")
+        weather_provider = get_weather_provider(parcel)
 
         sim_dict = {
             device.controlledProperty: (
