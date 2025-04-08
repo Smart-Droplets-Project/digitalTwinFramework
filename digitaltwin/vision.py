@@ -33,8 +33,8 @@ def get_detection_score_in_parcel(parcel_area):
 
 def get_locations_of_detections() -> MultiPoint:
     coordinates_detections = [
-        (23.9100961, 55.126702),
-        (23.9081435, 55.1224445),
+        (23.5824108, 55.7546751),
+        (23.5812092, 55.7529604),
     ]
     multi_point = MultiPoint(coordinates_detections)
     return multi_point
