@@ -9,8 +9,8 @@ from ngsildclient import SubscriptionBuilder
 from sd_data_adapter.client import DAClient
 from sd_data_adapter.api import search
 from sd_data_adapter.models import AgriFood
-from digitaltwin.utils.simulator import run_cropmodel
-from digitaltwin.utils.data_adapter import fill_database
+from digitaltwin.utils.simulator import run_cropmodel, run_ascabmodel
+from digitaltwin.utils.data_adapter import fill_database, fill_database_ascab
 from digitaltwin.utils.database import clear_database
 
 
@@ -23,14 +23,14 @@ ORION_PORT = os.environ["ORION_PORT"]
 client = DAClient.get_instance(host=ORION_HOST, port=ORION_PORT)
 
 
-def daily_run():
+def daily_run_cropmodel():
     current_day = datetime.date.today()
     run_cropmodel(end_date=current_day, debug=True)
 
 
 # Set up APScheduler to run daily at midnight
 scheduler = BackgroundScheduler()
-scheduler.add_job(daily_run, "cron", hour=0, minute=0)
+scheduler.add_job(daily_run_cropmodel, "cron", hour=0, minute=0)
 
 
 def get_crop_id_from_request(request: Request):
@@ -104,9 +104,12 @@ if __name__ == "__main__":
     fill_database()
 
     # start a simulation when the script starts
-    daily_run()
+    daily_run_cropmodel()
 
     # Start the scheduler to run daily crop simulations
     scheduler.start()
+
+    fill_database_ascab()
+    run_ascabmodel(end_date=datetime.date.today(), debug=True)
 
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -50,8 +50,8 @@ def create_crop(
         dateModified=str(datetime.datetime.now()),
         # TODO grab from somewhere
         plantingFrom=[
-            "20221003",
-            "20230820",
+            "20240924",
+            "20250820",
         ],  # List of planting and harvest date in YYYYMMDD in str
         **({"hasAgriPest": [p.id for p in pest]} if pest else {}),
     )
@@ -62,6 +62,13 @@ def create_crop(
 
 def create_fertilizer(do_upload=True) -> agri_food_model.AgriProductType:
     model = agri_food_model.AgriProductType(type="fertilizer", name="Nitrogen")
+    if do_upload:
+        upload(model)
+    return model
+
+
+def create_pesticide(do_upload=True) -> agri_food_model.AgriProductType:
+    model = agri_food_model.AgriProductType(type="pesticide", name="fungicide")
     if do_upload:
         upload(model)
     return model
@@ -116,7 +123,7 @@ def create_command_message(
     return model
 
 
-def create_fertilizer_application(
+def create_agriparcel_operation(
     parcel: agri_food_model.AgriParcel,
     product: agri_food_model.AgriProductType,
     quantity=60,
@@ -145,7 +152,7 @@ def create_parcel(
     do_upload=True,
     name: str = "Wheat Parcel Lithuania",
     address: str = "Uzumiskes, Kaunas, Lithuania",  # replaced e accent with normal e
-    desciption: str = "Lithuania",
+    description: str = "Lithuania",
 ) -> agri_food_model.AgriParcel:
     """
     Function to initialize a parcel Entity.
@@ -172,7 +179,7 @@ def create_parcel(
         area=area_parcel,
         hasAgriCrop=crop.id,
         **({"hasAgriSoil": soil.id} if soil else {}),
-        description=desciption,
+        description=description,
     )
     if do_upload:
         upload(model)
@@ -266,25 +273,17 @@ def fill_database(variables: list[str] = get_default_variables()):
         multilinestring=(MultiLineString()),  # for rows
         polygon=Polygon(
             [
-                (23.5789776, 55.7585147),
-                (23.5788918, 55.7537815),
-                (23.5705662, 55.7528155),
-                (23.5705662, 55.7518494),
-                (23.5770035, 55.7501104),
-                (23.5817242, 55.7479849),
-                (23.5830116, 55.7461491),
-                (23.5867023, 55.7450863),
-                (23.5938263, 55.7445065),
-                (23.5927105, 55.7462458),
-                (23.5882473, 55.7459076),
-                (23.5877323, 55.7479366),
-                (23.5923672, 55.7483714),
-                (23.5921097, 55.7503036),
-                (23.5875607, 55.7501104),
-                (23.5857582, 55.7559550),
-                (23.5876465, 55.7561482),
-                (23.5835266, 55.7589977),
-                (23.5789776, 55.7585147),
+                (23.5938350, 55.7445460),
+                (23.5927030, 55.7462760),
+                (23.5882110, 55.7458520),
+                (23.5875350, 55.7479050),
+                (23.5924700, 55.7482910),
+                (23.5924060, 55.7502900),
+                (23.5793270, 55.7491190),
+                (23.5816020, 55.7480560),
+                (23.5831040, 55.7461480),
+                (23.5864190, 55.7451930),
+                (23.5938350, 55.7445460),
             ]
         ),
     )
@@ -328,6 +327,7 @@ def fill_database(variables: list[str] = get_default_variables()):
 
 def fill_database_ascab():
     scab = create_agripest()
+    pesticide = create_pesticide()
     alternaria = create_agripest(description="alternaria")
     apple_pest = [scab, alternaria]
     apple_crop = create_crop(crop_type="apple", pest=apple_pest)
@@ -351,7 +351,7 @@ def fill_database_ascab():
         crop=apple_crop,
         name="Apple Orchard",
         address="Carrer Major, 1, 17143 Jafre, Girona, Spain",
-        desciption="Serrater",
+        description="Serrater",
     )
     variables = ["LeafWetness"]
     for variable in variables:

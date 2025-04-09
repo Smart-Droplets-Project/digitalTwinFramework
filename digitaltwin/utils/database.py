@@ -59,8 +59,8 @@ def find_agriproducttype(name: str):
     )
 
 
-def has_demodata():
-    return bool(search(get_demo_parcels()))
+def has_demodata(description: str = "Lithuania"):
+    return bool(search(get_demo_parcels(description=description), ctx=AgriFood.ctx))
 
 
 def clear_database(verbose=False):
@@ -87,6 +87,7 @@ def clear_database(verbose=False):
 
 
 def get_parcel_operation_by_date(parcel_operations, target_date):
+
     matching_operations = list(
         filter(
             lambda op: datetime.datetime.strptime(op.plannedStartAt, "%Y%m%d").date()
