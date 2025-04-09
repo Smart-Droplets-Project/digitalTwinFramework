@@ -3,9 +3,9 @@ import datetime
 from sd_data_adapter.client import DAClient
 
 from digitaltwin.cropmodel.crop_model import get_default_variables
-from digitaltwin.utils.data_adapter import fill_database
+from digitaltwin.utils.data_adapter import fill_database, fill_database_ascab
 from digitaltwin.utils.database import has_demodata, clear_database
-from digitaltwin.utils.simulator import run_cropmodel
+from digitaltwin.utils.simulator import run_cropmodel, run_ascabmodel
 
 
 def main():

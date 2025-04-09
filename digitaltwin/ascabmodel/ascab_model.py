@@ -1,3 +1,4 @@
+from datetime import date
 from ascab.env.env import AScabEnv
 from typing import Optional, List
 from sd_data_adapter.models.smartDataModel import Relationship
@@ -52,7 +53,14 @@ def get_weather_location(
 
 def create_digital_twins(
     parcels: List[agri_food_model.AgriParcel],
+    end_date: date = None,
 ) -> List[AscabModel]:
+    end_date = end_date or date(2022, 10, 1)
+    year = end_date.year
+
+    start_date = date(year, 1, 1)
+    dates = (start_date.isoformat(), end_date.isoformat())
+
     results = []
     for parcel in parcels:
         crop = get_by_id(parcel.hasAgriCrop["object"])
@@ -60,8 +68,10 @@ def create_digital_twins(
             parcel_id=parcel.id,
             crop_id=crop.id,
             pest_id=crop.hasAgriPest["object"],
-            location=(get_weather_location(parcel)),  # (42.1620, 3.0924),
-            dates=("2022-01-01", "2022-10-01"),
+            location=(get_weather_location(parcel)),
+            dates=dates,
+            biofix_date="March 10",
+            budbreak_date="March 10",
         )
         results.append(ascab)
     return results

@@ -5,9 +5,15 @@ import tempfile
 import os
 
 from sd_data_adapter.api import search, upsert
-from sd_data_adapter.models import AgriFood
+from sd_data_adapter.models import AgriFood, Devices
 import sd_data_adapter.models.device as device_model
 from sd_data_adapter.models.agri_food.agriParcel import AgriParcel
+from ascab.utils.plot import plot_results
+
+from digitaltwin.ascabmodel.ascab_model import (
+    create_digital_twins as create_digital_twins_ascab,
+)
+from digitaltwin.ascabmodel.recommendation import minimize_risk
 
 from digitaltwin.cropmodel.crop_model import (
     create_digital_twins,
@@ -20,7 +26,7 @@ from digitaltwin.utils.data_adapter import (
     generate_rec_message_id,
     get_recommendation_message,
     create_geojson_from_feature_collection,
-    create_fertilizer_application,
+    create_agriparcel_operation,
 )
 from digitaltwin.utils.database import (
     get_by_id,
@@ -42,6 +48,23 @@ from digitaltwin.cropmodel.crop_model import (
 )
 
 
+def get_sim_dict(devices: list[Devices]):
+    sim_dict = {
+        device.controlledProperty: (
+            device,
+            device_model.DeviceMeasurement(
+                refDevice=device.id,
+                controlledProperty=device.controlledProperty,
+                dateCreated=datetime.datetime.now().isoformat() + "T00:00:00Z",
+                dataProvider="digital-twin-simulator",
+            ),
+        )
+        for device in devices
+        if device.controlledProperty.startswith("sim-")
+    }
+    return sim_dict
+
+
 def run_cropmodel(
     parcels: list[AgriParcel] = None,
     calibrate_flag=True,
@@ -61,19 +84,8 @@ def run_cropmodel(
         parcel = get_by_id(digital_twin._locatedAtParcel, ctx=AgriFood.ctx)
         weather_provider = get_weather_provider(parcel)
 
-        sim_dict = {
-            device.controlledProperty: (
-                device,
-                device_model.DeviceMeasurement(
-                    refDevice=device.id,
-                    controlledProperty=device.controlledProperty,
-                    dateCreated=datetime.datetime.now().isoformat() + "T00:00:00Z",
-                    dataProvider="digital-twin-simulator",
-                ),
-            )
-            for device in devices
-            if device.controlledProperty.startswith("sim-")
-        }
+        sim_dict = get_sim_dict(devices)
+
         device_obs_dvs = get_matching_device(devices, "obs-DVS")
         dvs_measurements = find_device_measurement(
             controlled_property="obs-DVS", ref_device=device_obs_dvs.id
@@ -162,7 +174,7 @@ def run_cropmodel(
                             parcel.location, target_rate_value=recommendation
                         ),
                     )
-                    operation = create_fertilizer_application(
+                    operation = create_agriparcel_operation(
                         parcel=parcel,
                         product=fertilizer_object,
                         quantity=recommendation,
@@ -220,3 +232,100 @@ def run_cropmodel(
             filename = os.path.join(tempfile.gettempdir(), f"model_output_{today}.png")
             plt.savefig(filename, dpi=300)
             plt.show()
+    return
+
+
+def run_ascabmodel(
+    parcels: list[AgriParcel] = None,
+    end_date: datetime.date = None,
+    debug=False,
+):
+    if parcels is None:
+        parcels = search(get_demo_parcels("Serrater"), ctx=AgriFood.ctx)
+    pesticide_object = find_agriproducttype(name="fungicide")[0]
+    digital_twins = create_digital_twins_ascab(parcels, end_date=end_date)
+
+    # run digital twins
+    for digital_twin in digital_twins:
+        devices = find_device(digital_twin._isAgriCrop)
+        sim_dict = get_sim_dict(devices)
+
+        terminated = False
+        digital_twin.reset()
+        while not terminated:
+            parcel_operations = find_parcel_operations(digital_twin._locatedAtParcel)
+            parcel_operation = get_parcel_operation_by_date(
+                parcel_operations,
+                (digital_twin.date - datetime.timedelta(days=1)),
+            )
+            action = parcel_operation.quantity if parcel_operation else 0
+
+            _, _, terminated, _, _ = digital_twin.step(action)
+
+            ask_recommendation = (
+                digital_twin.date == end_date if end_date is not None else True
+            )
+            ask_recommendation = True  # TODO
+
+            info = digital_twin.get_wrapper_attr("info")
+            for variable, (device, device_measurement) in sim_dict.items():
+                stripped_variable = variable.split("-", 1)[1]
+                if info[stripped_variable] is not None:
+                    device_measurement.numValue = info[stripped_variable][-1]
+                    device_measurement.dateObserved = (
+                        info["Date"][-1].isoformat() + "T00:00:00Z"
+                    )
+                    upsert(device_measurement)
+            recommendation = 0.0
+            if ask_recommendation:
+                recommendation = minimize_risk(info)
+
+            # create command message
+            if recommendation > 0:
+                parcel = get_by_id(digital_twin._locatedAtParcel, ctx=AgriFood.ctx)
+                recommendation_message = get_recommendation_message(
+                    type="fungicide",
+                    amount=recommendation,
+                    day=info["Date"][-1].isoformat(),
+                    parcel_id=digital_twin._locatedAtParcel,
+                )
+
+                command_message_id = generate_rec_message_id(
+                    day=info["Date"][-1].isoformat(),
+                    parcel_id=digital_twin._locatedAtParcel,
+                )
+
+                command = create_command_message(
+                    message_id=command_message_id,
+                    command=recommendation_message,
+                    command_time=info["Date"][-1].isoformat(),
+                    waypoints=create_geojson_from_feature_collection(
+                        parcel.location, target_rate_value=recommendation
+                    ),
+                )
+                operation = create_agriparcel_operation(
+                    parcel=parcel,
+                    product=pesticide_object,
+                    quantity=recommendation,
+                    date=datetime.datetime.fromisoformat(
+                        info["Date"][-1].isoformat()
+                    ).strftime("%Y%m%d"),
+                    operationtype="sim-pesticide",
+                )
+
+        # get output
+        summary_output = digital_twin.get_info(to_dataframe=True)
+        if debug:
+            print(digital_twin)
+            print("The following commands were stored\n")
+            print(find_command_messages())
+
+            today = datetime.datetime.today().strftime("%Y-%m-%d")
+            plot_results(
+                summary_output,
+                save_path=os.path.join(
+                    tempfile.gettempdir(), f"model_ascab_{today}.png"
+                ),
+            )
+
+    return
