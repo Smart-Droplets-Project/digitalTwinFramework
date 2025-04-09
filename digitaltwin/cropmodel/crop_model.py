@@ -122,7 +122,7 @@ def get_agro_config(
 
 def get_weather_provider(
     parcel: agri_food_model.AgriParcel,
-    provider: str = "nasapower",
+    provider: str = "openmeteo",
 ) -> pcse.base.WeatherDataProvider:
     """
     returns either NASA Power or OpenMeteo weather provider,
