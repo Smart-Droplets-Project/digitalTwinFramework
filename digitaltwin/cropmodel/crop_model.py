@@ -434,20 +434,20 @@ def optimize(objfunc_calc, p_mod, lower, upper, steps):
 def get_dummy_measurements() -> pd.DataFrame:
     # DVS as published on MARS website
     MARS = [
-        [datetime.date(2022, 12, 31), 0.03],
-        [datetime.date(2023, 1, 1), 0.03],
-        [datetime.date(2023, 2, 1), 0.04],
-        [datetime.date(2023, 3, 1), 0.08],
-        [datetime.date(2023, 3, 15), 0.15],
-        [datetime.date(2023, 4, 1), 0.28],
-        [datetime.date(2023, 4, 10), 0.38],
-        [datetime.date(2023, 5, 1), 0.62],
-        [datetime.date(2023, 5, 20), 1.0],
-        [datetime.date(2023, 6, 1), 1.24],
-        [datetime.date(2023, 6, 15), 1.6],
-        [datetime.date(2023, 6, 20), 1.7],
-        [datetime.date(2023, 7, 1), 1.93],
-        [datetime.date(2023, 7, 10), 2.0],
+        [datetime.date(2024, 12, 31), 0.03],
+        [datetime.date(2025, 1, 1), 0.03],
+        [datetime.date(2025, 2, 1), 0.04],
+        [datetime.date(2025, 3, 1), 0.08],
+        [datetime.date(2025, 3, 15), 0.15],
+        [datetime.date(2025, 4, 1), 0.28],
+        [datetime.date(2025, 4, 10), 0.38],
+        [datetime.date(2025, 5, 1), 0.62],
+        [datetime.date(2025, 5, 20), 1.0],
+        [datetime.date(2025, 6, 1), 1.24],
+        [datetime.date(2025, 6, 15), 1.6],
+        [datetime.date(2025, 6, 20), 1.7],
+        [datetime.date(2025, 7, 1), 1.93],
+        [datetime.date(2025, 7, 10), 2.0],
     ]
     Results_MARS = pd.DataFrame(MARS, columns=["day", "DVS"])
     Results_MARS = Results_MARS.set_index("day")
@@ -456,10 +456,10 @@ def get_dummy_measurements() -> pd.DataFrame:
 
 def get_dummy_lai_measurements() -> pd.DataFrame:
     lai = [
-        [datetime.date(2023, 2, 15), 1.51],
-        [datetime.date(2023, 4, 15), 3.21],
-        [datetime.date(2023, 4, 27), 3.51],
-        [datetime.date(2023, 6, 3), 3.61],
+        [datetime.date(2025, 2, 15), 1.51],
+        [datetime.date(2025, 4, 15), 3.21],
+        [datetime.date(2025, 4, 27), 3.51],
+        [datetime.date(2025, 6, 3), 3.61],
     ]
     results_lai = pd.DataFrame(lai, columns=["day", "LAI"])
     results_lai = results_lai.set_index("day")
