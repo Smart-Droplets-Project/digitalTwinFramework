@@ -21,7 +21,8 @@ from digitaltwin.utils.data_adapter import (
     fill_database_ascab,
     map_pest_detections_to_device_id,
     map_pest_detections_to_parcel,
-    check_points_in_parcel
+    check_points_in_parcel,
+    get_parcel_geometry
 )
 from digitaltwin.cropmodel.crop_model import get_default_variables
 
@@ -84,9 +85,10 @@ def main():
     parcels = search(get_demo_parcels("Serrater"), ctx=AgriFood.ctx)
 
     for parcel in parcels:
-        parcel_area = get_coordinates(parcel.location, "Polygon")
+        # parcel_area = get_coordinates(parcel.location, "Polygon")
+        parcel_geometry = get_parcel_geometry(parcel.location)
         # Option 1: a single score per parcel
-        score = get_detection_score_in_parcel(parcel_area)
+        score = get_detection_score_in_parcel(parcel_geometry)
         # Option 2: get locations of detections within the given parcel
         # locations = get_locations_of_detections()
         pest_detections = get_demo_pest_location()
@@ -111,7 +113,7 @@ def main():
                     value=score,
                     # location=pest_map[device.controlledAsset],  # can use either this option `detections->device->pest id`
                     location=map_pest_detections_to_parcel(  # or this option `detections->parcel area->device->pest id`
-                        parcel_area,
+                        parcel_geometry,
                         pests,
                         device,
                         pest_detections
@@ -126,7 +128,7 @@ def main():
                     value=1.0,
                     # location=pest_map[device.controlledAsset],
                     location=map_pest_detections_to_parcel(
-                        parcel_area,
+                        parcel_geometry,
                         pests,
                         device,
                         pest_detections

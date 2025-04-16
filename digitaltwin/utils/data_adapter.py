@@ -237,6 +237,15 @@ def check_points_in_parcel(parcel_area: dict, detections: MultiPoint) -> bool:
     return all(parcel_polygon.contains(point) for point in detection_points.geoms)
 
 
+def get_parcel_geometry(feature_collection: dict) -> dict:
+    # Assuming that the parcel feature has the property "name" equal to "parcel area"
+    for feature in feature_collection["features"]:
+        if feature["properties"].get("name") == "parcel area":
+            # Return only the geometry part of the feature
+            return feature["geometry"]
+    raise ValueError("Parcel area not found in feature collection")
+
+
 def map_pest_detections_to_device_id(
     pests: list[agri_food_model.AgriPest],
     pest_locations: dict[str, MultiPoint],
@@ -249,7 +258,7 @@ def map_pest_detections_to_device_id(
 
 
 def map_pest_detections_to_parcel(
-    parcel_area: GeoJSON,
+    parcel_area: Union[GeoJSON, dict],
     pests: agri_food_model.AgriPest,
     device: device_model.Device,
     pest_detections: dict[str, MultiPoint],
@@ -261,6 +270,7 @@ def map_pest_detections_to_parcel(
                 #  checks if location is in the parcel bounds
                 if check_points_in_parcel(parcel_area, detections):
                     return detections
+    return None
 
 
 def fill_database(variables: list[str] = get_default_variables()):
@@ -273,17 +283,19 @@ def fill_database(variables: list[str] = get_default_variables()):
         multilinestring=(MultiLineString()),  # for rows
         polygon=Polygon(
             [
-                (23.5938350, 55.7445460),
-                (23.5927030, 55.7462760),
-                (23.5882110, 55.7458520),
-                (23.5875350, 55.7479050),
-                (23.5924700, 55.7482910),
-                (23.5924060, 55.7502900),
-                (23.5793270, 55.7491190),
-                (23.5816020, 55.7480560),
-                (23.5831040, 55.7461480),
-                (23.5864190, 55.7451930),
-                (23.5938350, 55.7445460),
+                [
+                    (23.5938350, 55.7445460),
+                    (23.5927030, 55.7462760),
+                    (23.5882110, 55.7458520),
+                    (23.5875350, 55.7479050),
+                    (23.5924700, 55.7482910),
+                    (23.5924060, 55.7502900),
+                    (23.5793270, 55.7491190),
+                    (23.5816020, 55.7480560),
+                    (23.5831040, 55.7461480),
+                    (23.5864190, 55.7451930),
+                    (23.5938350, 55.7445460),
+                ]
             ]
         ),
     )
@@ -336,11 +348,13 @@ def fill_database_ascab():
         multilinestring=(MultiLineString()),  # for rows
         polygon=Polygon(
             [
-                (3.0928589, 42.1628388),
-                (3.0927731, 42.1615902),
-                (3.0961419, 42.1613676),
-                (3.0962492, 42.1625684),
-                (3.0928589, 42.1628388),
+                [
+                    (3.0928589, 42.1628388),
+                    (3.0927731, 42.1615902),
+                    (3.0961419, 42.1613676),
+                    (3.0962492, 42.1625684),
+                    (3.0928589, 42.1628388),
+                ]
             ]
         ),
     )
