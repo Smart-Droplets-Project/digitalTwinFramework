@@ -50,8 +50,8 @@ def create_crop(
         dateModified=str(datetime.datetime.now()),
         # TODO grab from somewhere
         plantingFrom=[
-            "20240924",
-            "20250820",
+            "20240918",
+            "20250821",
         ],  # List of planting and harvest date in YYYYMMDD in str
         **({"hasAgriPest": [p.id for p in pest]} if pest else {}),
     )
@@ -335,6 +335,28 @@ def fill_database(variables: list[str] = get_default_variables()):
             date_observed=date.isoformat(),
             value=row["LAI"],
         )
+
+    operation = create_agriparcel_operation(
+        parcel=parcel,
+        product=fertilizer,
+        quantity=round(0.18 * 160.0),
+        date="20240906",
+        operationtype="fertilizer",
+    )
+    operation = create_agriparcel_operation(
+        parcel=parcel,
+        product=fertilizer,
+        quantity=round(0.34 * 240.0),
+        date="20250324",
+        operationtype="fertilizer",
+    )
+    operation = create_agriparcel_operation(
+        parcel=parcel,
+        product=fertilizer,
+        quantity=round(0.21 * 150.0),
+        date="20250328",
+        operationtype="fertilizer",
+    )
 
 
 def fill_database_ascab():
