@@ -73,7 +73,7 @@ class CropModel(pcse.engine.Engine):
         # do action at end of time step
         days_counter = days
         days_done = 0
-        while (days_done < days) and (self.flag_terminate is False):
+        while days_done < days:
             days_done += 1
             days_counter -= 1
             if days_counter > 0:
@@ -136,7 +136,7 @@ def get_weather_provider(
         ):
             location = feature["geometry"]["coordinates"]
     if provider == "openmeteo":
-        return OpenMeteoWeatherProvider(*location)
+        return OpenMeteoWeatherProvider(*location, force_update=True)
     elif provider == "nasapower":
         return pcse.input.NASAPowerWeatherDataProvider(*location)
 

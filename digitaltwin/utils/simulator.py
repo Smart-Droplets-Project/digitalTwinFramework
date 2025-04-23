@@ -122,11 +122,12 @@ def run_cropmodel(
                 parcel_operations, digital_twin.day
             )
             action = parcel_operation.quantity if parcel_operation else 0
+            if use_cropgym_agent and cropgym_agent and action > 0:
+                cropgym_agent.update_action(action * 0.10)
             digital_twin.run(1, action)
             ask_recommendation = (
                 digital_twin.day == end_date if end_date is not None else True
             )
-
             dates = get_simulated_days(digital_twin.get_output())
 
             for variable, (device, device_measurement) in sim_dict.items():

@@ -81,7 +81,8 @@ class CropgymAgent:
         if isinstance(action, np.ndarray):
             action = float(action[0])
 
-        if action > 0:
+        manage_action_history_externally = True
+        if manage_action_history_externally == False and action > 0:
             self.update_action(action)
 
         return action
