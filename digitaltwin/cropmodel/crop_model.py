@@ -13,7 +13,7 @@ from sd_data_adapter.api import get_by_id
 from sd_data_adapter.models.smartDataModel import Relationship
 from .agromanagement import AgroManagement
 
-from digitaltwin.cropmodel.recommendation import fill_it_up, CropgymAgent
+from digitaltwin.cropmodel.recommendation import scheduled, CropgymAgent
 from digitaltwin.utils.database import (
     find_parcel_operations,
     get_parcel_operation_by_date,
@@ -95,13 +95,13 @@ class CropModel(pcse.engine.Engine):
 
 
 def get_agro_config(
-        crop_name: str,
-        variety_name: str,
-        start_date: datetime.datetime,
-        end_date: datetime.datetime,
-        start_type: str = "sowing",
-        end_type: str = "harvest",
-        max_duration: int = 365,
+    crop_name: str,
+    variety_name: str,
+    start_date: datetime.datetime,
+    end_date: datetime.datetime,
+    start_type: str = "sowing",
+    end_type: str = "harvest",
+    max_duration: int = 365,
 ):
     with open(os.path.join(CONFIGS_DIR, "agro", "wheat_cropcalendar.yaml"), "r") as f:
         init_agro_config = yaml.load(f, Loader=yaml.SafeLoader)
@@ -169,7 +169,7 @@ def get_site_parameters(site: agri_food_model.agriParcel):
 
 def get_default_variables():
     # TODO: make sure that the following aligns with OUTPUT_VARS in Wofost81_NWLP_MLWB_SNOMIN.conf
-    return ["DVS", "LAI", "TAGP", "TWSO", "NAVAIL", "NuptakeTotal"]
+    return ["DVS", "LAI", "NAVAIL", "TWSO"]
 
 
 def get_titles():
@@ -185,8 +185,8 @@ def get_titles():
 
 
 def create_cropgym_agents(
-        parcels: List[agri_food_model.AgriParcel],
-        digital_twins: List[CropModel],
+    parcels: List[agri_food_model.AgriParcel],
+    digital_twins: List[CropModel],
 ) -> List[CropgymAgent]:
     agents = []
     for parcel, digital_twin in zip(parcels, digital_twins):
@@ -199,7 +199,7 @@ def create_cropgym_agents(
 
 
 def create_digital_twins(
-        parcels: List[agri_food_model.AgriParcel],
+    parcels: List[agri_food_model.AgriParcel],
 ) -> List[CropModel]:
     crop_parameters = pcse.input.YAMLCropDataProvider(
         fpath=os.path.join(CONFIGS_DIR, "crop"), force_reload=True
@@ -300,8 +300,7 @@ class ModelRerunner(object):
 
     # TODO maybe a redundant function
     def run(self, model_mod):
-        """Make one time step of the simulation.
-        """
+        """Make one time step of the simulation."""
 
         # Update timer
         model_mod.day, delt = model_mod.timer()
@@ -317,7 +316,7 @@ class ModelRerunner(object):
 
         # Grab recommendations from parcel operation
         if self.parcel_operations is None:
-            action = fill_it_up(model_mod.get_output()[-1])
+            action = scheduled(model_mod.get_output()[-1])
         else:
             parcel_operation = get_parcel_operation_by_date(
                 self.parcel_operations, model_mod.day
@@ -434,20 +433,17 @@ def optimize(objfunc_calc, p_mod, lower, upper, steps):
 def get_dummy_measurements() -> pd.DataFrame:
     # DVS as published on MARS website
     MARS = [
-        [datetime.date(2024, 12, 31), 0.03],
-        [datetime.date(2025, 1, 1), 0.03],
-        [datetime.date(2025, 2, 1), 0.04],
-        [datetime.date(2025, 3, 1), 0.08],
-        [datetime.date(2025, 3, 15), 0.15],
-        [datetime.date(2025, 4, 1), 0.28],
-        [datetime.date(2025, 4, 10), 0.38],
-        [datetime.date(2025, 5, 1), 0.62],
-        [datetime.date(2025, 5, 20), 1.0],
-        [datetime.date(2025, 6, 1), 1.24],
-        [datetime.date(2025, 6, 15), 1.6],
-        [datetime.date(2025, 6, 20), 1.7],
-        [datetime.date(2025, 7, 1), 1.93],
-        [datetime.date(2025, 7, 10), 2.0],
+        [datetime.date(2023, 3, 1), 0.08],
+        [datetime.date(2023, 3, 15), 0.15],
+        [datetime.date(2023, 4, 1), 0.28],
+        [datetime.date(2023, 4, 15), 0.41],
+        [datetime.date(2023, 5, 1), 0.62],
+        [datetime.date(2023, 5, 15), 0.77],
+        [datetime.date(2023, 6, 1), 1.0],
+        [datetime.date(2023, 6, 14), 1.13],
+        # [datetime.date(2023, 6, 20), 1.7],
+        # [datetime.date(2023, 7, 1), 1.93],
+        # [datetime.date(2023, 7, 10), 2.0],
     ]
     Results_MARS = pd.DataFrame(MARS, columns=["day", "DVS"])
     Results_MARS = Results_MARS.set_index("day")
@@ -456,10 +452,12 @@ def get_dummy_measurements() -> pd.DataFrame:
 
 def get_dummy_lai_measurements() -> pd.DataFrame:
     lai = [
-        [datetime.date(2025, 2, 15), 1.51],
-        [datetime.date(2025, 4, 15), 3.21],
-        [datetime.date(2025, 4, 27), 3.51],
-        [datetime.date(2025, 6, 3), 3.61],
+        [datetime.date(2023, 2, 15), 1.51],
+        [datetime.date(2023, 4, 15), 3.15],
+        [datetime.date(2023, 5, 1), 3.51],
+        [datetime.date(2023, 5, 15), 4.7],
+        [datetime.date(2023, 6, 1), 4.51],
+        [datetime.date(2023, 6, 14), 4.45],
     ]
     results_lai = pd.DataFrame(lai, columns=["day", "LAI"])
     results_lai = results_lai.set_index("day")
