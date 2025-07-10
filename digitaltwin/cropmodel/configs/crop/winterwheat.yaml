@@ -438,11 +438,11 @@ CropParameters:
       - initial rooting depth
       - - cm
       RRI: &id049
-      - 1.2
+      - 1.0
       - maximum daily increase in rooting depth
       - - cm.d-1
       RDMCR: &id050
-      - 125.0
+      - 100.0
       - maximum rooting depth
       - - cm
       NMAXLV_TB: &id051

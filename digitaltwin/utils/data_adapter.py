@@ -75,7 +75,7 @@ def create_pesticide(do_upload=True) -> agri_food_model.AgriProductType:
 
 
 def create_agrisoil(do_upload=True):
-    model = agri_food_model.AgriSoil(description="layered_soil")
+    model = agri_food_model.AgriSoil(description="lt_soil")
     if do_upload:
         upload(model)
     return model
