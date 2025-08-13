@@ -1252,7 +1252,7 @@ CropParameters:
       REALLOC_STEM_RATE: *id070
       REALLOC_LEAF_RATE: *id062
       REALLOC_EFFICIENCY: *id063
-    Arminda:
+    Lithuania:
       AMAX_SLP: *id001
       AMAX_LNB: *id002
       CO2EFFTB: *id003
@@ -1266,9 +1266,9 @@ CropParameters:
       DLO: *id071
       DLC: *id011
       TSUM1:
-      - 886.0
+      - 850.0
       TSUM2:
-      - 860.0
+      - 700.0
       DTSMTB: *id012
       DVSI: *id013
       DVSEND: *id014
@@ -1282,7 +1282,8 @@ CropParameters:
       SLATB: *id017
       SPA: *id018
       SSATB: *id019
-      SPAN: *id020
+      SPAN:
+      - 30.0
       TBASE: *id021
       KDIFTB: *id022
       EFFTB: *id023

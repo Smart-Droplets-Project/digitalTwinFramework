@@ -399,15 +399,18 @@ class ObjectiveFunctionCalculator(object):
             else 0
         )
 
-        # For LAI, calculate the error, ignoring NaN values
-        error_lai = (
-            np.sqrt(np.mean(df_differences.LAI.dropna() ** 2))
-            if df_differences.LAI.notna().any()
-            else 0
-        )
+        # put threshold on LAI observations; ignore below 1.0
+        lai_mask = (self.df_observations.LAI > 1.0).reindex(df_differences.index)
+        lai_mask = lai_mask.astype("boolean")
+        lai_mask = lai_mask.fillna(False)
+        lai_mask = lai_mask.astype(bool)
+
+        if lai_mask.any():
+            error_lai = np.sqrt(np.mean(df_differences.LAI[lai_mask] ** 2))
+        else:
+            error_lai = 0
 
         obj_func = error_dvs + error_lai
-        # print(f'{par_values} {obj_func}')
         return obj_func
 
 
@@ -430,60 +433,103 @@ def optimize(objfunc_calc, p_mod, lower, upper, steps):
     return x
 
 
-def get_dummy_measurements() -> pd.DataFrame:
-    # DVS as published on MARS website
-    MARS = [
-        [datetime.date(2023, 3, 1), 0.08],
-        [datetime.date(2023, 3, 15), 0.15],
-        [datetime.date(2023, 4, 1), 0.28],
-        [datetime.date(2023, 4, 15), 0.41],
-        [datetime.date(2023, 5, 1), 0.62],
-        [datetime.date(2023, 5, 15), 0.77],
-        [datetime.date(2023, 6, 1), 1.0],
-        [datetime.date(2023, 6, 14), 1.13],
-        # [datetime.date(2023, 6, 20), 1.7],
-        # [datetime.date(2023, 7, 1), 1.93],
-        # [datetime.date(2023, 7, 10), 2.0],
+def get_dvs_measurements() -> pd.DataFrame:
+    dvs = [
+        [datetime.date(2025, 6, 22), 1.0],
     ]
-    Results_MARS = pd.DataFrame(MARS, columns=["day", "DVS"])
-    Results_MARS = Results_MARS.set_index("day")
-    return Results_MARS
+    df_dvs = pd.DataFrame(dvs, columns=["day", "DVS"])
+    df_dvs = df_dvs.set_index("day")
+    return df_dvs
 
 
-def get_dummy_lai_measurements() -> pd.DataFrame:
+def get_lai_measurements() -> pd.DataFrame:
     lai = [
-        [datetime.date(2023, 2, 15), 1.51],
-        [datetime.date(2023, 4, 15), 3.15],
-        [datetime.date(2023, 5, 1), 3.51],
-        [datetime.date(2023, 5, 15), 4.7],
-        [datetime.date(2023, 6, 1), 4.51],
-        [datetime.date(2023, 6, 14), 4.45],
+        [datetime.date(2024, 9, 5), 0.15825132310945078],
+        [datetime.date(2024, 9, 8), 0.17682688073471048],
+        [datetime.date(2024, 9, 18), 0.23117254275813734],
+        [datetime.date(2024, 9, 20), 0.1712588728224831],
+        [datetime.date(2024, 9, 23), 0.17861915034643217],
+        [datetime.date(2024, 9, 30), 0.17240729192555712],
+        [datetime.date(2024, 10, 5), 0.23609693716500826],
+        [datetime.date(2024, 10, 18), 0.27465273179123306],
+        [datetime.date(2024, 10, 20), 0.2579485475217616],
+        [datetime.date(2024, 10, 23), 0.2802925354855496],
+        [datetime.date(2024, 10, 28), 0.45895537661481794],
+        [datetime.date(2024, 11, 2), 0.5562276731616322],
+        [datetime.date(2024, 11, 4), 0.5178871482182413],
+        [datetime.date(2024, 11, 24), 0.5770340652618662],
+        [datetime.date(2024, 12, 17), 0.5714625811879488],
+        [datetime.date(2025, 2, 25), 0.2552811291428818],
+        [datetime.date(2025, 3, 7), 0.36417558765800606],
+        [datetime.date(2025, 3, 9), 0.24457786018278818],
+        [datetime.date(2025, 3, 22), 0.3253683844596027],
+        [datetime.date(2025, 3, 29), 0.3646847948339418],
+        [datetime.date(2025, 4, 1), 0.37932862106457144],
+        [datetime.date(2025, 4, 3), 0.4083808910338358],
+        [datetime.date(2025, 4, 15), 1.1893672543054243],
+        [datetime.date(2025, 4, 18), 1.3161926729891082],
+        [datetime.date(2025, 4, 21), 0.7213238828026711],
+        [datetime.date(2025, 4, 23), 2.016954573189108],
+        [datetime.date(2025, 4, 25), 2.3080209461911125],
+        [datetime.date(2025, 4, 26), 2.524632321108681],
+        [datetime.date(2025, 5, 1), 3.0709683065614937],
+        [datetime.date(2025, 5, 3), 2.4099542735805426],
+        [datetime.date(2025, 5, 13), 2.824929257112378],
+        [datetime.date(2025, 5, 21), 3.6935079398369384],
+        [datetime.date(2025, 5, 25), 4.785199243686298],
+        [datetime.date(2025, 6, 7), 5.443960387348966],
+        [datetime.date(2025, 6, 14), 4.774278119381872],
+        [datetime.date(2025, 6, 15), 5.256266299295123],
+        [datetime.date(2025, 6, 17), 5.047314758147644],
+        [datetime.date(2025, 7, 2), 3.8961900881086056],
+        [datetime.date(2025, 7, 4), 4.077918580777735],
+        [datetime.date(2025, 7, 12), 2.7178349839368043],
+        [datetime.date(2025, 7, 17), 2.0032932850631533],
+        [datetime.date(2025, 7, 22), 0.9215797273747098],
+        [datetime.date(2025, 7, 27), 0.4908867288132728],
+        [datetime.date(2025, 8, 1), 0.4111830569174219],
     ]
+
     results_lai = pd.DataFrame(lai, columns=["day", "LAI"])
     results_lai = results_lai.set_index("day")
     return results_lai
 
 
 def get_default_calibration_parameters():
-    return ["TSUM1", "TSUM2", "TDWI", "SPAN"]  # "DLC", "DLO", "TSUMEM",
+    return ["TSUM1", "TDWI", "SPAN"]
 
 
 def calibrate(
     cropmodel: CropModel,
-    measurements: pd.DataFrame = get_dummy_measurements(),
+    measurements: pd.DataFrame = get_dvs_measurements(),
     parameters=get_default_calibration_parameters(),
     end_date=None,
 ):
-    # DVS variables and sowing
     parameter_provider = cropmodel.parameterprovider
     weather_data_provider = cropmodel.weatherdataprovider
     agro_management = cropmodel._agromanagement
     parcel_operations = find_parcel_operations(cropmodel._locatedAtParcel) or None
     model_config = cropmodel.mconf.model_config_file
     parameters_mod = {x: parameter_provider._cropdata[x] for x in parameters}
-    lower_bounds = [i * 0.5 for i in parameters_mod.values()]
-    upper_bounds = [i * 1.5 for i in parameters_mod.values()]
-    initial_steps = [i * 0.1 for i in parameters_mod.values()]
+
+    # Custom bounds for specific variables (multipliers)
+    custom_bounds = {
+        "SPAN": (0.95, 1.05),
+        "TSUM1": (0.95, 1.05),
+        "TDWI": (0.9, 1.1),
+    }
+    lower_bounds = []
+    upper_bounds = []
+    initial_steps = []
+
+    for var, val in parameters_mod.items():
+        low_mult, high_mult = custom_bounds.get(
+            var, (0.75, 1.25)
+        )  # default bounds if not specified
+        lower_bounds.append(val * low_mult)
+        upper_bounds.append(val * high_mult)
+        initial_steps.append(val * 0.25)
+
     objfunc_calculator = ObjectiveFunctionCalculator(
         parameter_provider,
         weather_data_provider,
