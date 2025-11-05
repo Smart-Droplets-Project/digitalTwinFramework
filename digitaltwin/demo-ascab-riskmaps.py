@@ -25,11 +25,9 @@ from digitaltwin.utils.database import (
 )
 from digitaltwin.utils.riskmap_helpers import (
     generate_points_in_polygon,
-    get_risks,
+    get_daily_actions,
     get_polygon_bounds,
-    visualize_riskmap,
-    prescription_from_points,
-    create_prescription_geojson
+    create_prescription_maps
 )
 
 from digitaltwin.ascabmodel.ascab_model import create_digital_twins
@@ -51,24 +49,31 @@ def main():
     parcels = search(get_demo_parcels("Serrater"), ctx=AgriFood.ctx)
     # digital_twins = create_digital_twins(parcels)
 
-    risk_dict = {}
+    action_dict = {}
     points_dict = {}
     polygon_dict = {}
     for parcel in parcels:
         polygon_coordinates = get_polygon_bounds(parcel)
         print(polygon_coordinates)
-        points_list = generate_points_in_polygon(polygon_coordinates)
-        polygon_dict[parcel.id] = polygon_coordinates
-        risk_dict[parcel.id] = get_risks(points_list)
-        points_dict[parcel.id] = points_list
+        polygon_dict[parcel.id]: dict[str, list[tuple[float, float]]] = polygon_coordinates
+        action_dict[parcel.id]: dict[str, dict[datetime.date, float]] = get_daily_actions(
+            polygon_coordinates[0],
+            start_date=datetime.date(2025, 3, 1),
+            end_date=datetime.date(2025, 5, 31),
+        )
+        # Emulate detections from the camera
+        points: dict = generate_points_in_polygon(
+            polygon_coordinates,
+            action_dict[parcel.id],
+            points_per_day=15
+        )
+        points_dict[parcel.id]: dict[str, dict] = points
 
-    from_points = False
-    if from_points:
-        prescription_from_points(risk_dict, points_dict)
-    else:
-        create_prescription_geojson(risk_dict, polygon_dict)
-
-    visualize_riskmap()
+    create_prescription_maps(
+        action_dict,
+        polygon_dict,
+        points_dict,
+    )
 
 
 if __name__ == "__main__":
