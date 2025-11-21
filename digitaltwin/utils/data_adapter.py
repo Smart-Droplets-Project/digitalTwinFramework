@@ -16,6 +16,7 @@ from ..cropmodel.crop_model import (
     get_default_variables,
     get_dvs_measurements,
     get_lai_measurements,
+    get_lai_measurements_with_images,
 )
 from sd_data_adapter.api import upload
 import sd_data_adapter.models.agri_food as agri_food_model
@@ -95,6 +96,7 @@ def create_device_measurement(
     date_observed: str,
     value: float,
     location=None,
+    alternateName=None,
     do_upload=True,
 ):
     model = device_model.DeviceMeasurement(
@@ -103,6 +105,7 @@ def create_device_measurement(
         numValue=value,
         refDevice=device.id,
         location=location,
+        alternateName=alternateName,
     )
     if do_upload:
         upload(model)
@@ -322,6 +325,12 @@ def fill_database(
         )
         obs_dict[variable] = device
 
+    for variable in ["lai_image", "rgb_image"]:
+        device = create_device(
+            controlled_asset=wheat_crop.id, variable=f"obs-{variable}"
+        )
+        obs_dict[variable] = device
+
     dvs_measurements = get_dvs_measurements()
     for date, row in dvs_measurements.iterrows():
         dvs_measurement = create_device_measurement(
@@ -330,14 +339,25 @@ def fill_database(
             value=row["DVS"],
         )
 
-    lai_measurements = get_lai_measurements()
+    lai_measurements = get_lai_measurements_with_images()
     for date, row in lai_measurements.iterrows():
         lai_measurement = create_device_measurement(
             device=obs_dict["LAI"],
             date_observed=date.isoformat(),
             value=row["LAI"],
         )
-
+        lai_image = create_device_measurement(
+            device=obs_dict["lai_image"],
+            date_observed=date.isoformat(),
+            value=row["LAI"],
+            alternateName=row["LAI_url"],
+        )
+        rgb_image = create_device_measurement(
+            device=obs_dict["rgb_image"],
+            date_observed=date.isoformat(),
+            value=row["LAI"],
+            alternateName=row["RGB_url"],
+        )
     operation = create_agriparcel_operation(
         parcel=parcel,
         product=fertilizer,

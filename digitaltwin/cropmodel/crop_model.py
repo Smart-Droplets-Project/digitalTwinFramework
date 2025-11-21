@@ -495,6 +495,281 @@ def get_lai_measurements() -> pd.DataFrame:
     return results_lai
 
 
+def get_lai_measurements_with_images():
+    lai = [
+        [
+            datetime.date(2024, 9, 5),
+            0.15825132310945078,
+            "https://drive.google.com/uc?export=view&id=1H5WHSO9XHBcOoWVxETFCwzKjUHxy1M_H",
+            "https://drive.google.com/uc?export=view&id=1sxjdSCGKumbQSSa6daj3aV-6VRPV9Xrc",
+        ],
+        [
+            datetime.date(2024, 9, 8),
+            0.17682688073471048,
+            "https://drive.google.com/uc?export=view&id=1L6mUuczdVyW-uvzmLWgImbqMNWGM01tr",
+            "https://drive.google.com/uc?export=view&id=1F_GGlqxU_G6vIWjkUMUbB3Mqudqn3HQX",
+        ],
+        [
+            datetime.date(2024, 9, 18),
+            0.23117254275813734,
+            "https://drive.google.com/uc?export=view&id=1Bz8WQpjRvzxEevmKVVFTMGiBG8Q64YSS",
+            "https://drive.google.com/uc?export=view&id=1kSELwV-ZGLGQ6OGfgFDhgMNvK3_INJw1",
+        ],
+        [
+            datetime.date(2024, 9, 20),
+            0.1712588728224831,
+            "https://drive.google.com/uc?export=view&id=1F4SjooVQY2UDmwgSoY0cXgn1AEnLONpS",
+            "https://drive.google.com/uc?export=view&id=1U5vq3DpDxYjVbwDUPypboWIdzm2RdOP2",
+        ],
+        [
+            datetime.date(2024, 9, 23),
+            0.17861915034643217,
+            "https://drive.google.com/uc?export=view&id=15RUUtPOoq42PYZiSfAh2uqUpaFOql7yV",
+            "https://drive.google.com/uc?export=view&id=1RCl4MbU3AmhrEAvKa6HV2RSDXU3Eq6I_",
+        ],
+        [
+            datetime.date(2024, 9, 30),
+            0.17240729192555712,
+            "https://drive.google.com/uc?export=view&id=1To3l8w42BLe-EVcG3Losvqnu_epAsWGk",
+            "https://drive.google.com/uc?export=view&id=1Y1dTVGapk2oXqs8J5VfoOCBf1CHdrF-R",
+        ],
+        [
+            datetime.date(2024, 10, 5),
+            0.23609693716500826,
+            "https://drive.google.com/uc?export=view&id=1CtjQdy8B6MrlgP7qqNUj8_HNuSKf6oNj",
+            "https://drive.google.com/uc?export=view&id=1ohIvYUCrpAffrEdF_B9GotNpC7oGJc1m",
+        ],
+        [
+            datetime.date(2024, 10, 18),
+            0.27465273179123306,
+            "https://drive.google.com/uc?export=view&id=1KyFGrmkZX_TuEbMWGFUQvdMW13r8p3bQ",
+            "https://drive.google.com/uc?export=view&id=19QoE0wGnSQ04qhtpmtRgdc1GoopwU2Vy",
+        ],
+        [
+            datetime.date(2024, 10, 20),
+            0.2579485475217616,
+            "https://drive.google.com/uc?export=view&id=1NkTioQyox1fp-ft_4ut9qr3xH5iU0nx7",
+            "https://drive.google.com/uc?export=view&id=1mALJijdE5WpBDR2OWOmfGQqzmYO6Tne8",
+        ],
+        [
+            datetime.date(2024, 10, 23),
+            0.2802925354855496,
+            "https://drive.google.com/uc?export=view&id=1LgqtkZmr9rwFGnq-xFaFU_zN1b0Y84QS",
+            "https://drive.google.com/uc?export=view&id=1B9lz2ZiAs3my97VldnU4kqaa047MdtFE",
+        ],
+        [
+            datetime.date(2024, 10, 28),
+            0.45895537661481794,
+            "https://drive.google.com/uc?export=view&id=17qXaWtOZ1Kp4RtJjm_ZghegHfiVdatHt",
+            "https://drive.google.com/uc?export=view&id=1jKdkANA4yS3rqov-_hpRqPUfiaiemrUZ",
+        ],
+        [
+            datetime.date(2024, 11, 2),
+            0.5562276731616322,
+            "https://drive.google.com/uc?export=view&id=1m8ucTxo7NWVPeIZmn501OOyVl2QWhWpP",
+            "https://drive.google.com/uc?export=view&id=1p3BNoKKfoLUz0fCwjfYiL9iV6tniqigW",
+        ],
+        [
+            datetime.date(2024, 11, 4),
+            0.5178871482182413,
+            "https://drive.google.com/uc?export=view&id=1mQPTHoAfpVrTRxzIKmjQpJfHrAENBPu5",
+            "https://drive.google.com/uc?export=view&id=1OkPi9ZywD0aakOp1UfYRnrdy_YP-Uazg",
+        ],
+        [
+            datetime.date(2024, 11, 24),
+            0.5770340652618662,
+            "https://drive.google.com/uc?export=view&id=1xMZr50MSsfiXIWDGHDr5i3ira5K9Snzl",
+            "https://drive.google.com/uc?export=view&id=1MvtD095s8CRG3AxDWYuKfCotqS393TGK",
+        ],
+        [
+            datetime.date(2024, 12, 17),
+            0.5714625811879488,
+            "https://drive.google.com/uc?export=view&id=1jbR0_O31lS7Eji-qBbtZP3ds6mM8wqp8",
+            "https://drive.google.com/uc?export=view&id=1G9c-6B3m2Qthu7p3Q-SZCiwAzHvhH2LW",
+        ],
+        [
+            datetime.date(2025, 2, 25),
+            0.2552811291428818,
+            "https://drive.google.com/uc?export=view&id=1D8LoqJkEA6RTr5M8dGODbKRRz1qkVQ1Q",
+            "https://drive.google.com/uc?export=view&id=1C0t--dJsyBhTtziaAigPbN1vU6IsQDbu",
+        ],
+        [
+            datetime.date(2025, 3, 7),
+            0.36417558765800606,
+            "https://drive.google.com/uc?export=view&id=1t1duAgLj6CCyfp9FK0iXax47LMAi9LCZ",
+            "https://drive.google.com/uc?export=view&id=1le3WoaFunYuB9imCaiGXJBLbLJIS4C9R",
+        ],
+        [
+            datetime.date(2025, 3, 9),
+            0.24457786018278818,
+            "https://drive.google.com/uc?export=view&id=1Qr-_7ggE4ABQ4y-f-8uTMhyCq-7L7PLT",
+            "https://drive.google.com/uc?export=view&id=1L_KWLhZUy61Cj1BeLVw3iS5u_nnP5ms6",
+        ],
+        [
+            datetime.date(2025, 3, 22),
+            0.3253683844596027,
+            "https://drive.google.com/uc?export=view&id=156fyC7i1Vkga9cD94MgkucGgRlCWTXtn",
+            "https://drive.google.com/uc?export=view&id=1U9hCCGnMwuys4H5P7AvOeR-5eEYhQWfM",
+        ],
+        [
+            datetime.date(2025, 3, 29),
+            0.3646847948339418,
+            "https://drive.google.com/uc?export=view&id=17rEmWOYc95oWnQoF9gA7646TWBaJ5VUq",
+            "https://drive.google.com/uc?export=view&id=1xo7vouoFhS0IcSskuYDpIqCPAS_7WU_0",
+        ],
+        [
+            datetime.date(2025, 4, 1),
+            0.37932862106457144,
+            "https://drive.google.com/uc?export=view&id=1TYPjaxa_5ivvEmqUgEnXaD91C_yoOj-Q",
+            "https://drive.google.com/uc?export=view&id=1Rezrnto_KKQxISI1C6vvlOekbNCVwBGi",
+        ],
+        [
+            datetime.date(2025, 4, 3),
+            0.4083808910338358,
+            "https://drive.google.com/uc?export=view&id=1pNRTP1QuIhPn4dD7KkVhJqDqCBPHn9rI",
+            "https://drive.google.com/uc?export=view&id=1CHel_aDc-VZL4QdKgeCmb7lmh--d-GnD",
+        ],
+        [
+            datetime.date(2025, 4, 15),
+            1.1893672543054243,
+            "https://drive.google.com/uc?export=view&id=19uAYDIkUl6Ywuk9X7uEbiaygI0roRSTv",
+            "https://drive.google.com/uc?export=view&id=1PcCfiFKLK2ZZKcvHKWy484MFot4-cec0",
+        ],
+        [
+            datetime.date(2025, 4, 18),
+            1.3161926729891082,
+            "https://drive.google.com/uc?export=view&id=1Rnwpzlp-f49trQS4xhBzXZmOy2ham1sT",
+            "https://drive.google.com/uc?export=view&id=1lu5l_Zmpd3u6OsneLc3cVBQcK3RKbQG8",
+        ],
+        [
+            datetime.date(2025, 4, 21),
+            0.7213238828026711,
+            "https://drive.google.com/uc?export=view&id=1WsgEzDa5gbWqIEfPhnj6jr4tfEg_Gq4s",
+            "https://drive.google.com/uc?export=view&id=166rdbKrkCNzlOhVw7DJ1wL3_ipZ0UFIn",
+        ],
+        [
+            datetime.date(2025, 4, 23),
+            2.016954573189108,
+            "https://drive.google.com/uc?export=view&id=1AzvB-eubKp4tvBRhX6QeJqCtFTOOi23-",
+            "https://drive.google.com/uc?export=view&id=1XFHCS_1PTWzRXQdWwV2F38Ntu5VSHH5C",
+        ],
+        [
+            datetime.date(2025, 4, 25),
+            2.3080209461911125,
+            "https://drive.google.com/uc?export=view&id=1vFlFyUaFFuaauwc9JXLRg2jnd_vBClqN",
+            "https://drive.google.com/uc?export=view&id=18yLKEtxyuFxeK4aQ-G7LgDPe6DM2wUWv",
+        ],
+        [
+            datetime.date(2025, 4, 26),
+            2.524632321108681,
+            "https://drive.google.com/uc?export=view&id=139JRRYsNgu8EeqieAMPMhGVuiHlzZiwc",
+            "https://drive.google.com/uc?export=view&id=1WUyq3edhvQj_Lg4yEI-upQL3Fp2XIm5S",
+        ],
+        [
+            datetime.date(2025, 5, 1),
+            3.0709683065614937,
+            "https://drive.google.com/uc?export=view&id=1DCjhZUbjCR5ksMSTcVBYjLcKILk_F5hZ",
+            "https://drive.google.com/uc?export=view&id=1oJX6VGczmSgaStUi6_ElhwyVs_LXdeZv",
+        ],
+        [
+            datetime.date(2025, 5, 3),
+            2.4099542735805426,
+            "https://drive.google.com/uc?export=view&id=15yTntgVDie4nqP7kIh6nl0KQCK8XftxW",
+            "https://drive.google.com/uc?export=view&id=1VI-zyNr1mQNzpIvWKzx4xu44JJXP4-fM",
+        ],
+        [
+            datetime.date(2025, 5, 13),
+            2.824929257112378,
+            "https://drive.google.com/uc?export=view&id=11nSnqDa_xQ2iMS2wDd-h-5Nk4B3KBRe6",
+            "https://drive.google.com/uc?export=view&id=1C6T2if98OL0HCc7fqYG6XjZmtDB-4A7O",
+        ],
+        [
+            datetime.date(2025, 5, 21),
+            3.6935079398369384,
+            "https://drive.google.com/uc?export=view&id=1Er2S5St9nBfXpSbThJPk18a-fj1p3f1r",
+            "https://drive.google.com/uc?export=view&id=1oejvYjPBSwdHj_F0_NSwnlzwuMxecO7v",
+        ],
+        [
+            datetime.date(2025, 5, 25),
+            4.785199243686298,
+            "https://drive.google.com/uc?export=view&id=1dM9lqHGIHzyBHiju14AzYbHYGeVBm7nZ",
+            "https://drive.google.com/uc?export=view&id=10fV2KUXflRDt8XHgtC2uDLKLTbqOl7rF",
+        ],
+        [
+            datetime.date(2025, 6, 7),
+            5.443960387348966,
+            "https://drive.google.com/uc?export=view&id=15uMqokCMhbMg6g_5mgkm9qwNtUJC51Ge",
+            "https://drive.google.com/uc?export=view&id=1FK3L2XfSFV-hblZ2LXV8ouQbozD9o5rV",
+        ],
+        [
+            datetime.date(2025, 6, 14),
+            4.774278119381872,
+            "https://drive.google.com/uc?export=view&id=1aOnkgQSweQry3LA8GqMxazfAOLxHtsJj",
+            "https://drive.google.com/uc?export=view&id=1TCXt5p3-JbuZaP3WKRPzRrGtxuXqN8RM",
+        ],
+        [
+            datetime.date(2025, 6, 15),
+            5.256266299295123,
+            "https://drive.google.com/uc?export=view&id=1LYtT-7NmEFYbk3tkiUvdVv07wiZbCCQw",
+            "https://drive.google.com/uc?export=view&id=1plauRIk4NNZbnd7UanWSunKcAQGxC6fU",
+        ],
+        [
+            datetime.date(2025, 6, 17),
+            5.047314758147644,
+            "https://drive.google.com/uc?export=view&id=1D66QyRLBJKDBtn6sEvMNPqvMjH1L2Uws",
+            "https://drive.google.com/uc?export=view&id=1VmLp3pGceBAHu6NqqbNHeF6BCqFE-588",
+        ],
+        [
+            datetime.date(2025, 7, 2),
+            3.8961900881086056,
+            "https://drive.google.com/uc?export=view&id=1qxzmRMSD_i46Rd_TEVxIdHEW2QQb0NT9",
+            "https://drive.google.com/uc?export=view&id=1a71Yvk5MoJ6ioq84hNHG1fQZs8MsnUvl",
+        ],
+        [
+            datetime.date(2025, 7, 4),
+            4.077918580777735,
+            "https://drive.google.com/uc?export=view&id=1V1DRWJw7h__zG1N4JekK7NlA79CctdGD",
+            "https://drive.google.com/uc?export=view&id=1gAORXmhMU0QwIsZBQ9kEmMQ_rLuHABV2",
+        ],
+        [
+            datetime.date(2025, 7, 12),
+            2.7178349839368043,
+            "https://drive.google.com/uc?export=view&id=1Cr9zkLzAp5wkqFDMSNHavrx2-YGlCd_y",
+            "https://drive.google.com/uc?export=view&id=1dCA4Vmh_iwinG8bbessBKwByuCJu-SVs",
+        ],
+        [
+            datetime.date(2025, 7, 17),
+            2.0032932850631533,
+            "https://drive.google.com/uc?export=view&id=14Myzef-g8sgIhBVkc5SMfHwdue652X2-",
+            "https://drive.google.com/uc?export=view&id=1UARIe-C8ZQz5yhQRmKhnKcnf0dB6o2gG",
+        ],
+        [
+            datetime.date(2025, 7, 22),
+            0.9215797273747098,
+            "https://drive.google.com/uc?export=view&id=1CFtJ4b8qLTriYGfePKtIqCTngF7x8cl-",
+            "https://drive.google.com/uc?export=view&id=12KJMrcn0AHMzSHQtoYRi5qXJQe_bYcaq",
+        ],
+        [
+            datetime.date(2025, 7, 27),
+            0.4908867288132728,
+            "https://drive.google.com/uc?export=view&id=1J7fHOMYjfeztYLBBrUjeZ-pKq9Df-vdz",
+            "https://drive.google.com/uc?export=view&id=1LUpXYGzTBIHeNfVh_l-WakcT-myx_UbA",
+        ],
+        [
+            datetime.date(2025, 8, 1),
+            0.4111830569174219,
+            "https://drive.google.com/uc?export=view&id=1lg6rRwbwLEKMZuXrjvSaJx6sATS2OdmM",
+            "https://drive.google.com/uc?export=view&id=1FOrgTqF8iggrKz3Cv2e6x2zJ6QzKm-kn",
+        ],
+    ]
+    results_lai = pd.DataFrame(
+        lai,
+        columns=["day", "LAI", "LAI_url", "RGB_url"],
+    )
+    results_lai = results_lai.set_index("day")
+    return results_lai
+
+
 def get_default_calibration_parameters():
     return ["TSUM1", "TDWI", "SPAN"]
 
