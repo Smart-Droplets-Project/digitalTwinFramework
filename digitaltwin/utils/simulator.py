@@ -148,6 +148,7 @@ def run_cropmodel(
             ask_recommendation = (
                 digital_twin.day == end_date if end_date is not None else True
             )
+            ask_recommendation = False
             dates = get_simulated_days(digital_twin.get_output())
 
             for variable, (device, device_measurement) in sim_dict.items():
