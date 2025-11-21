@@ -277,10 +277,14 @@ def map_pest_detections_to_parcel(
 
 
 def fill_database(
-    variables: list[str] = get_default_variables(), fertilization="rl_agent"
+    variables: list[str] = get_default_variables(),
+    fertilization="hardcoded_rl_agent",
 ):
     wheat_pest = create_agripest(description="alternaria")
-    wheat_crop = create_crop("wheat", pest=[wheat_pest])
+    wheat_crop = create_crop(
+        "wheat",
+        pest=[wheat_pest],
+    )
     soil = create_agrisoil()
     fertilizer = create_fertilizer()
     geo_feature_collection = generate_feature_collections(
@@ -366,6 +370,49 @@ def fill_database(
         operationtype="fertilizer",
     )
     if fertilization == "hardcoded_rl_agent":
+
+        recommendation_message = get_recommendation_message(
+            type="fertilize",
+            amount=round(40),
+            day="20250305",
+            parcel_id=parcel.id,
+        )
+        command_message_id = generate_rec_message_id(
+            day="20250305",
+            parcel_id=parcel.id,
+        )
+        command = create_command_message(
+            message_id=command_message_id,
+            command=recommendation_message,
+            command_time=datetime.datetime.strptime("20250305", "%Y%m%d")
+            .date()
+            .isoformat(),
+            waypoints=create_geojson_from_feature_collection(
+                parcel.location, target_rate_value=round(40)
+            ),
+        )
+
+        recommendation_message = get_recommendation_message(
+            type="fertilize",
+            amount=round(70),
+            day="20250402",
+            parcel_id=parcel.id,
+        )
+        command_message_id = generate_rec_message_id(
+            day="20250402",
+            parcel_id=parcel.id,
+        )
+        command = create_command_message(
+            message_id=command_message_id,
+            command=recommendation_message,
+            command_time=datetime.datetime.strptime("20250402", "%Y%m%d")
+            .date()
+            .isoformat(),
+            waypoints=create_geojson_from_feature_collection(
+                parcel.location, target_rate_value=round(70)
+            ),
+        )
+
         operation = create_agriparcel_operation(
             parcel=parcel,
             product=fertilizer,
