@@ -19,6 +19,8 @@ from digitaltwin.cropmodel.crop_model import (
     create_digital_twins,
     create_cropgym_agents,
     get_weather_provider,
+    get_default_calibration_parameters,
+    CropModel,
 )
 from digitaltwin.cropmodel.recommendation import fill_it_up
 from digitaltwin.utils.data_adapter import (
@@ -71,13 +73,14 @@ def run_cropmodel(
     debug=False,
     end_date: datetime.date = None,
     use_cropgym_agent=True,
-):
+) -> tuple[list[CropModel], list[pd.DataFrame]]:
     if parcels is None:
         parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
     digital_twins = create_digital_twins(parcels)
     cropgym_agents = create_cropgym_agents(parcels, digital_twins)
     fertilizer_object = find_agriproducttype(name="Nitrogen")[0]
 
+    df_assimilates: list[pd.DataFrame] = []
     # run digital twins
     for digital_twin, cropgym_agent in zip(digital_twins, cropgym_agents):
         devices = find_device(digital_twin._isAgriCrop)
@@ -109,9 +112,26 @@ def run_cropmodel(
             df_assimilate = pd.merge(df_dvs, df_lai, on="day", how="outer")
             df_assimilate["day"] = pd.to_datetime(df_assimilate["day"])
             df_assimilate = df_assimilate.set_index("day")
+            df_assimilates.append(df_assimilate)
             min_date = df_assimilate.index.min().date()
             if end_date is None or end_date and end_date > min_date:
-                calibrate(digital_twin, df_assimilate, end_date=end_date)
+                if True:
+                    print(f"calibrate")
+                    calibration_parameters = get_default_calibration_parameters()
+                    flowered = df_assimilate[df_assimilate["DVS"] >= 1.2].index.min()
+                    if flowered <= pd.Timestamp(end_date):
+                        calibration_parameters = ["TSUM1", "TSUM2", "TDWI", "SPAN"]
+                    calibrate(
+                        digital_twin,
+                        df_assimilate,
+                        parameters=calibration_parameters,
+                        end_date=end_date,
+                    )
+        else:
+            pass
+            # digital_twin.parameterprovider.set_override("TSUM1", 892.5)
+            # digital_twin.parameterprovider.set_override("TDWI", 537.41)
+            # digital_twin.parameterprovider.set_override("SPAN", 28.5)
 
         # run crop model
         while digital_twin.flag_terminate is False:
@@ -122,11 +142,12 @@ def run_cropmodel(
                 parcel_operations, digital_twin.day
             )
             action = parcel_operation.quantity if parcel_operation else 0
+            if use_cropgym_agent and cropgym_agent and action > 0:
+                cropgym_agent.update_action(action * 0.10)
             digital_twin.run(1, action)
             ask_recommendation = (
                 digital_twin.day == end_date if end_date is not None else True
             )
-
             dates = get_simulated_days(digital_twin.get_output())
 
             for variable, (device, device_measurement) in sim_dict.items():
@@ -145,16 +166,15 @@ def run_cropmodel(
                 if use_cropgym_agent is False or not cropgym_agent:
                     recommendation = fill_it_up(digital_twin.get_output()[-1])
                 else:
-                    recommendation = 0
-                    if digital_twin.day.weekday() == 1:
-                        week_weather = get_weather(dates, weather_provider)
-                        recommendation = 10.0 * cropgym_agent(
-                            digital_twin.get_output(),
-                            week_weather,
-                        )
+                    week_weather = get_weather(dates, weather_provider)
+                    recommendation = 10.0 * cropgym_agent(
+                        digital_twin.get_output(),
+                        week_weather,
+                    )
 
                 # create command message
                 if recommendation > 0:
+                    print(f"{digital_twin.day}: {recommendation}")
                     recommendation_message = get_recommendation_message(
                         type="fertilize",
                         amount=recommendation,
@@ -207,7 +227,7 @@ def run_cropmodel(
                 )
                 if calibrate_flag and var == "DVS":
                     ax.plot_date(
-                        df_assimilate.index, df_assimilate.DVS, label="DVS Observation"
+                        df_assimilate.index, df_assimilate.DVS, label="Observations"
                     )
                 if calibrate_flag and var == "LAI":
                     ax.plot_date(
@@ -232,7 +252,7 @@ def run_cropmodel(
             filename = os.path.join(tempfile.gettempdir(), f"model_output_{today}.png")
             plt.savefig(filename, dpi=300)
             plt.show()
-    return
+    return digital_twins, df_assimilates
 
 
 def run_ascabmodel(

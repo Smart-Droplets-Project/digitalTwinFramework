@@ -5,7 +5,7 @@ from sd_data_adapter.client import DAClient
 from digitaltwin.cropmodel.crop_model import get_default_variables
 from digitaltwin.utils.data_adapter import fill_database, fill_database_ascab
 from digitaltwin.utils.database import has_demodata, clear_database
-from digitaltwin.utils.simulator import run_cropmodel, run_ascabmodel
+from digitaltwin.utils.simulator import run_cropmodel
 
 
 def main():
@@ -24,20 +24,20 @@ def main():
         fill_database(variables=get_default_variables())
 
     # Define start and end dates
-    start_date = datetime.datetime.strptime("20221003", "%Y%m%d").date()
-    end_date = datetime.datetime.strptime("20230820", "%Y%m%d").date()
+    start_date = datetime.datetime.strptime("20240918", "%Y%m%d").date()
+    end_date = datetime.datetime.strptime("20250709", "%Y%m%d").date()
 
     # List to hold all dates
     start_end = []
 
-    # Add 1st April and 1st May manually
-    start_end.append(datetime.date(2023, 4, 1))  # Add 1st April
-    start_end.append(datetime.date(2023, 5, 1))  # Add 1st May
+    # # Add 1st April and 1st May manually
+    start_end.append(datetime.date(2025, 4, 1))  # Add 1st April
+    # start_end.append(datetime.date(2025, 5, 1))  # Add 1st May
 
     # Generate the dates, incrementing by 75 days, ensuring start_date is included
     start_end += [
         start_date + datetime.timedelta(days=i)
-        for i in range(0, (end_date - start_date).days + 1, 75)
+        for i in range(0, (end_date - start_date).days + 1, 14)
     ]
 
     # Ensure that end_date is included
@@ -52,7 +52,8 @@ def main():
         run_cropmodel(
             debug=True,
             end_date=day,
-            use_cropgym_agent=False,
+            use_cropgym_agent=True,
+            calibrate_flag=False,
         )
 
 

@@ -14,8 +14,9 @@ from shapely.geometry import (
 from typing import Union, Optional, List
 from ..cropmodel.crop_model import (
     get_default_variables,
-    get_dummy_measurements,
-    get_dummy_lai_measurements,
+    get_dvs_measurements,
+    get_lai_measurements,
+    get_lai_measurements_with_images,
 )
 from sd_data_adapter.api import upload
 import sd_data_adapter.models.agri_food as agri_food_model
@@ -44,7 +45,7 @@ def create_crop(
     :return: AgriCrop entity
     """
     model = agri_food_model.AgriCrop(
-        alternateName="Arminda" if crop_type == "wheat" else "",
+        alternateName="Lithuania" if crop_type == "wheat" else "",
         description=crop_type,
         dateCreated=str(datetime.datetime.now()),
         dateModified=str(datetime.datetime.now()),
@@ -75,7 +76,7 @@ def create_pesticide(do_upload=True) -> agri_food_model.AgriProductType:
 
 
 def create_agrisoil(do_upload=True):
-    model = agri_food_model.AgriSoil(description="layered_soil")
+    model = agri_food_model.AgriSoil(description="lt_soil")
     if do_upload:
         upload(model)
     return model
@@ -95,6 +96,7 @@ def create_device_measurement(
     date_observed: str,
     value: float,
     location=None,
+    alternateName=None,
     do_upload=True,
 ):
     model = device_model.DeviceMeasurement(
@@ -103,6 +105,7 @@ def create_device_measurement(
         numValue=value,
         refDevice=device.id,
         location=location,
+        alternateName=alternateName,
     )
     if do_upload:
         upload(model)
@@ -273,7 +276,9 @@ def map_pest_detections_to_parcel(
     return None
 
 
-def fill_database(variables: list[str] = get_default_variables()):
+def fill_database(
+    variables: list[str] = get_default_variables(), fertilization="rl_agent"
+):
     wheat_pest = create_agripest(description="alternaria")
     wheat_crop = create_crop("wheat", pest=[wheat_pest])
     soil = create_agrisoil()
@@ -320,7 +325,13 @@ def fill_database(variables: list[str] = get_default_variables()):
         )
         obs_dict[variable] = device
 
-    dvs_measurements = get_dummy_measurements()
+    for variable in ["lai_image", "rgb_image"]:
+        device = create_device(
+            controlled_asset=wheat_crop.id, variable=f"obs-{variable}"
+        )
+        obs_dict[variable] = device
+
+    dvs_measurements = get_dvs_measurements()
     for date, row in dvs_measurements.iterrows():
         dvs_measurement = create_device_measurement(
             device=obs_dict["DVS"],
@@ -328,14 +339,25 @@ def fill_database(variables: list[str] = get_default_variables()):
             value=row["DVS"],
         )
 
-    lai_measurements = get_dummy_lai_measurements()
+    lai_measurements = get_lai_measurements_with_images()
     for date, row in lai_measurements.iterrows():
         lai_measurement = create_device_measurement(
             device=obs_dict["LAI"],
             date_observed=date.isoformat(),
             value=row["LAI"],
         )
-
+        lai_image = create_device_measurement(
+            device=obs_dict["lai_image"],
+            date_observed=date.isoformat(),
+            value=row["LAI"],
+            alternateName=row["LAI_url"],
+        )
+        rgb_image = create_device_measurement(
+            device=obs_dict["rgb_image"],
+            date_observed=date.isoformat(),
+            value=row["LAI"],
+            alternateName=row["RGB_url"],
+        )
     operation = create_agriparcel_operation(
         parcel=parcel,
         product=fertilizer,
@@ -343,20 +365,38 @@ def fill_database(variables: list[str] = get_default_variables()):
         date="20240906",
         operationtype="fertilizer",
     )
-    operation = create_agriparcel_operation(
-        parcel=parcel,
-        product=fertilizer,
-        quantity=round(0.34 * 240.0),
-        date="20250324",
-        operationtype="fertilizer",
-    )
-    operation = create_agriparcel_operation(
-        parcel=parcel,
-        product=fertilizer,
-        quantity=round(0.21 * 150.0),
-        date="20250328",
-        operationtype="fertilizer",
-    )
+    if fertilization == "hardcoded_rl_agent":
+        operation = create_agriparcel_operation(
+            parcel=parcel,
+            product=fertilizer,
+            quantity=round(40),
+            date="20250305",
+            operationtype="fertilizer",
+        )
+        operation = create_agriparcel_operation(
+            parcel=parcel,
+            product=fertilizer,
+            quantity=round(70),
+            date="20250402",
+            operationtype="fertilizer",
+        )
+    elif fertilization == "rl_agent":
+        pass
+    else:
+        operation = create_agriparcel_operation(
+            parcel=parcel,
+            product=fertilizer,
+            quantity=round(0.34 * 240.0),
+            date="20250324",
+            operationtype="fertilizer",
+        )
+        operation = create_agriparcel_operation(
+            parcel=parcel,
+            product=fertilizer,
+            quantity=round(0.21 * 150.0),
+            date="20250328",
+            operationtype="fertilizer",
+        )
 
 
 def fill_database_ascab():

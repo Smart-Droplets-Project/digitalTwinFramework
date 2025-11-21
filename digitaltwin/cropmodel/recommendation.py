@@ -12,6 +12,19 @@ AI_DIR = os.path.join(
 )
 
 
+def scheduled(crop_model_output: dict):
+    day = crop_model_output["day"]
+    result = 0
+    if day == datetime.date(day.year, 3, 20):
+        result = 60
+    elif day == datetime.date(day.year, 4, 10):
+        result = 80
+    elif day == datetime.date(day.year, 5, 10):
+        result = 80
+
+    return result
+
+
 def fill_it_up(crop_model_output: dict):
     year = crop_model_output["day"].year
     fertilization_dates = [datetime.date(year, 4, 1), datetime.date(year, 5, 1)]
@@ -81,7 +94,8 @@ class CropgymAgent:
         if isinstance(action, np.ndarray):
             action = float(action[0])
 
-        if action > 0:
+        manage_action_history_externally = True
+        if manage_action_history_externally == False and action > 0:
             self.update_action(action)
 
         return action
