@@ -74,6 +74,7 @@ def run_cropmodel(
     end_date: datetime.date = None,
     use_cropgym_agent=True,
 ) -> tuple[list[CropModel], list[pd.DataFrame]]:
+    print("run cropmodel")
     if parcels is None:
         parcels = search(get_demo_parcels(), ctx=AgriFood.ctx)
     digital_twins = create_digital_twins(parcels)
