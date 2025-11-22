@@ -414,7 +414,7 @@ class ObjectiveFunctionCalculator(object):
         return obj_func
 
 
-def optimize(objfunc_calc, p_mod, lower, upper, steps):
+def optimize(objfunc_calc, p_mod, lower, upper, steps, debug=False):
     # Calibration with optimizer
     opt = nlopt.opt(nlopt.LN_SBPLX, len(p_mod))
     opt.set_min_objective(objfunc_calc)
@@ -426,10 +426,11 @@ def optimize(objfunc_calc, p_mod, lower, upper, steps):
 
     x = opt.optimize(list(p_mod.values()))
     np.set_printoptions(precision=2, suppress=True)
-    print(f"\noptimum at {x}")
-    print("minimum value = ", opt.last_optimum_value())
-    print("result code = ", opt.last_optimize_result())
-    print("With %i function calls" % objfunc_calc.n_calls)
+    if debug:
+        print(f"\noptimum at {x}")
+        print("minimum value = ", opt.last_optimum_value())
+        print("result code = ", opt.last_optimize_result())
+        print("With %i function calls" % objfunc_calc.n_calls)
     return x
 
 
@@ -780,6 +781,9 @@ def calibrate(
     parameters=get_default_calibration_parameters(),
     end_date=None,
 ):
+    print(
+        f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} * Calibrate Crop Growth Model"
+    )
     parameter_provider = cropmodel.parameterprovider
     weather_data_provider = cropmodel.weatherdataprovider
     agro_management = cropmodel._agromanagement
