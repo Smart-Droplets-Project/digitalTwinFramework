@@ -23,6 +23,16 @@ ORION_PORT = os.environ["ORION_PORT"]
 client = DAClient.get_instance(host=ORION_HOST, port=ORION_PORT)
 
 
+@app.post("/manual-sim")
+async def receive_notification():
+    try:
+        run_cropmodel(debug=False)
+        return {"status": "received"}
+    except Exception as e:
+        print(f"Error processing request: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 @app.post("/notification")
 async def receive_notification(request: Request, debug=False):
     if debug:
@@ -58,7 +68,6 @@ def subscribe_to_ocb(host):
 
 if __name__ == "__main__":
     my_host = os.environ["DIGITAL_TWIN_HOST"]
-    subscribe_to_ocb(my_host)
 
     clear_database()
     fill_database()
