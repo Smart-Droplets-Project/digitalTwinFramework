@@ -83,6 +83,10 @@ def run_cropmodel(
     df_assimilates: list[pd.DataFrame] = []
     # run digital twins
     for digital_twin, cropgym_agent in zip(digital_twins, cropgym_agents):
+        print(
+            f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} * Run Digital Twin for {digital_twin._isAgriCrop}"
+        )
+
         devices = find_device(digital_twin._isAgriCrop)
         parcel = get_by_id(digital_twin._locatedAtParcel, ctx=AgriFood.ctx)
         weather_provider = get_weather_provider(parcel)
@@ -116,7 +120,6 @@ def run_cropmodel(
             min_date = df_assimilate.index.min().date()
             if end_date is None or end_date and end_date > min_date:
                 if True:
-                    print(f"calibrate")
                     calibration_parameters = get_default_calibration_parameters()
                     flowered = df_assimilate[df_assimilate["DVS"] >= 1.2].index.min()
                     if flowered <= pd.Timestamp(end_date):
@@ -127,6 +130,7 @@ def run_cropmodel(
                         parameters=calibration_parameters,
                         end_date=end_date,
                     )
+
         else:
             pass
             # digital_twin.parameterprovider.set_override("TSUM1", 892.5)
@@ -134,6 +138,9 @@ def run_cropmodel(
             # digital_twin.parameterprovider.set_override("SPAN", 28.5)
 
         # run crop model
+        print(
+            f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} * Run Crop Growth Model from {digital_twin.agromanager.start_date} to {digital_twin.agromanager.end_date}"
+        )
         while digital_twin.flag_terminate is False:
             if end_date is not None and digital_twin.day >= end_date:
                 digital_twin.flag_terminate = True
@@ -144,10 +151,15 @@ def run_cropmodel(
             action = parcel_operation.quantity if parcel_operation else 0
             if use_cropgym_agent and cropgym_agent and action > 0:
                 cropgym_agent.update_action(action * 0.10)
+            if action:
+                print(
+                    f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} * Apply {action} at {digital_twin.day}"
+                )
             digital_twin.run(1, action)
             ask_recommendation = (
                 digital_twin.day == end_date if end_date is not None else True
             )
+            ask_recommendation = False
             dates = get_simulated_days(digital_twin.get_output())
 
             for variable, (device, device_measurement) in sim_dict.items():
@@ -201,10 +213,12 @@ def run_cropmodel(
                         date=digital_twin.day.strftime("%Y%m%d"),
                         operationtype="sim-fertilizer",
                     )
-
         if debug:
+            print(
+                f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} * Finished Crop Growth Model"
+            )
             print(digital_twin.get_summary_output())
-            print("The following commands were stored:\n")
+            print("The following commands were stored:")
             print(find_command_messages())
 
             # print("The following DeviceMeasurements were stored:\n")
@@ -250,8 +264,10 @@ def run_cropmodel(
             fig.autofmt_xdate()
             today = datetime.datetime.today().strftime("%Y-%m-%d")
             filename = os.path.join(tempfile.gettempdir(), f"model_output_{today}.png")
+            print(
+                f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} * Save plot to {filename}"
+            )
             plt.savefig(filename, dpi=300)
-            plt.show()
     return digital_twins, df_assimilates
 
 
