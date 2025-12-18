@@ -302,7 +302,7 @@ def fill_database(
         ),
     )
     parcel = create_parcel(
-        location=geo_feature_collection, area_parcel=90, crop=wheat_crop, soil=soil
+        location=geo_feature_collection, area_parcel=90, crop=wheat_crop, soil=soil, description="Lithuania"
     )
 
     for variable in ["detection_score", "detections"]:
