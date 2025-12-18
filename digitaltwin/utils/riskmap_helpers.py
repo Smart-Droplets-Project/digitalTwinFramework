@@ -57,13 +57,13 @@ def get_polygon_bounds(parcel: AgriParcel):
 def generate_points_in_polygon(
         polygon: Union[Polygon, list],
         action_dict: dict[datetime.date, float],
-        step: float = 0.000001,
+        step: float = 0.00001,
         seed: int = 10,
         include_boundary: bool = True,
         max_points: int | None = None,
         points_per_day: int | None = None,
         scale_by_action: bool = False,
-        min_points_when_action: int = 4,
+        min_points_when_action: int = 17,
 ) -> dict[datetime.date, list[tuple[float, float]]]:
     """
     For each day in ``action_dict`` create a *repeatable* random subset of points inside ``polygon``.
@@ -443,7 +443,7 @@ def prescription_from_points(
 
 import numpy as np
 
-def gaussian_field_from_points(X, Y, pts, vals, sigma, scale=False):
+def gaussian_field_from_points(X, Y, pts, vals, sigma, scale=False, cutoff=2.0):
     """
     X, Y : 2D meshgrid arrays (same shape)
     pts  : array-like of shape (N, 2) with point coords [[x1,y1], [x2,y2], ...]
@@ -467,7 +467,7 @@ def gaussian_field_from_points(X, Y, pts, vals, sigma, scale=False):
     Z = np.sum(vals[:, None, None] * kernels, axis=0)
     if scale and np.any(Z):
         Z = (Z - Z.min()) / (Z.max() - Z.min())
-    Z[Z < 2.0] = 0.0
+    Z[Z < cutoff] = 0.0
     return Z
 
 
@@ -607,6 +607,9 @@ def create_prescription_maps(
         polygon_bounds,
         points_dict,
         output_dir: Union[str, Path] = "../risk_maps",
+        sigma = 0.0003,  # Define the spread of gaussian
+        resolution = 0.000005,  # about 10 m spacing (roughly)
+        cutoff_minimum=2.0
 ):
     for parcel_id, polygon_bounds in polygon_bounds.items():
         poly = Polygon(polygon_bounds)
@@ -615,10 +618,7 @@ def create_prescription_maps(
         minx, miny, maxx, maxy = poly.bounds
 
         # Define resolution (smaller step = denser grid)
-        step = 0.000005  # about 10 m spacing (roughly)
-
-        # Define the spread of gaussian
-        sigma=0.0003,  # don't change this value
+        step = resolution
 
         # Create meshgrid
         x = np.arange(minx, maxx, step)
@@ -634,7 +634,8 @@ def create_prescription_maps(
                 yy,
                 points_dict[parcel_id][day],
                 [action] * len(points_dict[parcel_id][day]),
-                sigma
+                sigma,
+                cutoff=cutoff_minimum
             )
             if not np.any(zz):
                 continue
