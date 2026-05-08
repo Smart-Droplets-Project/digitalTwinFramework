@@ -33,4 +33,6 @@ A user may also invoke a simulation for the whole growing season.
 We explain the inter-component interaction with a sequence diagram below:
 ![Digital Twin Seq](assets/DigitalTwinSequenceDiagram.png)
 
-
+## Data
+* [Pilot data](data/pilots) contains the data collected at the demonstration sites.
+* [AI fertilizer agent](digitaltwin/cropmodel/configs/AI_fertilizer_agent) contains the trained AI agents.
