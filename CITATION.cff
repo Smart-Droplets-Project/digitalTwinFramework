@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+title: Smart Droplets Digital Twin Framework
+message: If you use this software, please cite the article below.
+type: software
+license: Apache-2.0
+repository-code: https://github.com/Smart-Droplets-Project/digitalTwinFramework
+authors:
+  - family-names: Kallenberg
+    given-names: Michiel
+    affiliation: Wageningen University & Research
+  - family-names: Baja
+    given-names: Hilmy
+    affiliation: Wageningen University & Research
+  - family-names: Athanasiadis
+    given-names: Ioannis N.
+    affiliation: Wageningen University & Research
+preferred-citation:
+  type: article
+  title: Interoperable agricultural digital twins with reinforcement learning intelligence
+  authors:
+    - family-names: Kallenberg
+      given-names: Michiel
+    - family-names: Baja
+      given-names: Hilmy
+    - family-names: Ilić
+      given-names: Mihailo
+    - family-names: Tomčić
+      given-names: Aleksandar
+    - family-names: Tošić
+      given-names: Milenko
+    - family-names: Athanasiadis
+      given-names: Ioannis N.
+  year: 2025
+  journal: Smart Agricultural Technology
+  volume: "12"
+  doi: 10.1016/j.atech.2025.101412

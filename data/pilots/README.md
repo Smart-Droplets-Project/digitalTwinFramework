@@ -1,6 +1,12 @@
 # Digital Twin & Reinforcement Learning Pilot Studies
 
-This repository showcases pilot studies of digital twin models powered by reinforcement learning (RL) for crop management. Preliminary results are presented for apple and winter wheat crops from the 2024–2025 growing season.
+This folder documents what was **demonstrated and validated** with the digital twins at the Smart Droplets pilot sites (2024–2025 growing season). It is part of KER 7 (Digital Twin, WU).
+
+**In this folder:** narrative results and the two simulation figures. No raw grower records, Sentinel-2 scenes, or full weather archives.
+
+**Elsewhere in the repository:** example winter-wheat simulation CSVs in [`data/sample`](../sample); trained ONNX agents in [`digitaltwin/cropmodel/configs/AI_fertilizer_agent`](../../digitaltwin/cropmodel/configs/AI_fertilizer_agent) and [`digitaltwin/ascabmodel/AI_pesticide_agent`](../../digitaltwin/ascabmodel/AI_pesticide_agent).
+
+**Not published here:** RL training trajectories (method described in Baja et al., 2025). Farm operational data remain with the original providers.
 
 ---
 
@@ -23,7 +29,7 @@ In practice, standard management combines RIMpro recommendations with rainfall-d
 
 ## Winter Wheat Pilot
 
-For winter wheat, we employed a pretrained RL agent whose training and validation are described in detail in [Baja et al., 2025](#). The agent was extensively evaluated across diverse field conditions and consistently outperformed standard practices for nitrogen use efficiency in silico.
+For winter wheat, we employed a pretrained RL agent whose training and validation are described in detail in [Baja et al., 2025](https://doi.org/10.1016/j.compag.2025.110554). The agent was extensively evaluated across diverse field conditions and consistently outperformed standard practices for nitrogen use efficiency in silico.
 
 ### Model Performance
 
@@ -38,9 +44,14 @@ The RL agent recommended two in-season fertilization events: 5 March 2025 40 kg 
 
 ---
 
+## What this does *not* demonstrate
+
+These pilots show model comparison and recommendation quality in a relevant agricultural environment (TRL 6). They do not demonstrate season-long closed-loop tractor control by the digital twin, nor a production farm-DSS.
+
 ## References
 
-- Trapman, P. (1997). *Management of apple scab with RIMpro*.  
-- ONFruit (2023). *Orchard spraying guidelines*.  
-- Weiss, M., et al. (2020). *SNAP BioPhysS2tbx neural network for LAI estimation*.  
-- Baja, H., et al. (2025). *Winter wheat RL agent for nitrogen optimization*.  
+- Trapman, P. (1997). *Management of apple scab with RIMpro*.
+- ONFruit (2023). *Orchard spraying guidelines*.
+- Weiss, M., et al. (2020). *SNAP BioPhysS2tbx neural network for LAI estimation*.
+- Baja, H., Kallenberg, M. G. J., Berghuijs, H. N. C., & Athanasiadis, I. N. (2025). Adaptive fertilizer management for optimizing nitrogen use efficiency with constrained reinforcement learning. *Computers and Electronics in Agriculture*, 237, 110554. https://doi.org/10.1016/j.compag.2025.110554
+- Kallenberg, M., Baja, H., Ilić, M., Tomčić, A., Tošić, M., & Athanasiadis, I. N. (2025). Interoperable agricultural digital twins with reinforcement learning intelligence. *Smart Agricultural Technology*, 12, 101412. https://doi.org/10.1016/j.atech.2025.101412  
