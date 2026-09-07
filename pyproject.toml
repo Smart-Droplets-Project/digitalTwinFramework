@@ -1,9 +1,12 @@
 [tool.poetry]
 name = "digitaltwin"
 version = "0.1.0"
-description = "digitaltwin"
+description = "Smart Droplets Digital Twin framework (KER 7): WOFOST winter wheat and A-scab apple orchards with RL recommendations"
 authors = ["Wageningen University and Research"]
 readme = "README.md"
+license = "Apache-2.0"
+repository = "https://github.com/Smart-Droplets-Project/digitalTwinFramework"
+keywords = ["digital-twin", "agriculture", "wofost", "reinforcement-learning", "fiware"]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
